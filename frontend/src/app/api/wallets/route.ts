@@ -5,21 +5,34 @@ import { defineChain } from 'viem';
 import { mainnet, base, arbitrum, polygon, baseSepolia } from 'viem/chains';
 
 const robinhoodChain = defineChain({
-  id: 4862,
+  id: 4663,
   name: 'Robinhood Chain',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
-    default: { http: [process.env.RPC_ROBINHOOD || 'https://rpc.robinhood.com'] }
+    default: { http: [process.env.RPC_ROBINHOOD || 'https://rpc.mainnet.chain.robinhood.com'] }
   },
   blockExplorers: {
     default: { name: 'RobinhoodScan', url: 'https://explorer.robinhood.com' }
   }
 });
 
+const robinhoodTestnetChain = defineChain({
+  id: 46630,
+  name: 'Robinhood Testnet',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.RPC_ROBINHOOD_TESTNET || 'https://rpc.testnet.chain.robinhood.com'] }
+  },
+  blockExplorers: {
+    default: { name: 'RobinhoodTestnetScan', url: 'https://testnet.robinhoodchain.blockscout.com' }
+  }
+});
+
 const publicClients: Record<number, any> = {
+  4663: createPublicClient({ chain: robinhoodChain, transport: http(process.env.RPC_ROBINHOOD || 'https://rpc.mainnet.chain.robinhood.com', { timeout: 3000 }) }),
+  46630: createPublicClient({ chain: robinhoodTestnetChain, transport: http(process.env.RPC_ROBINHOOD_TESTNET || 'https://rpc.testnet.chain.robinhood.com', { timeout: 3000 }) }),
   1: createPublicClient({ chain: mainnet, transport: http('https://ethereum-rpc.publicnode.com', { timeout: 3000 }) }),
   8453: createPublicClient({ chain: base, transport: http('https://mainnet.base.org', { timeout: 3000 }) }),
-  4862: createPublicClient({ chain: robinhoodChain, transport: http(process.env.RPC_ROBINHOOD || 'https://rpc.robinhood.com', { timeout: 3000 }) }),
   42161: createPublicClient({ chain: arbitrum, transport: http('https://arb1.arbitrum.io/rpc', { timeout: 3000 }) }),
   137: createPublicClient({ chain: polygon, transport: http('https://polygon-rpc.com', { timeout: 3000 }) }),
   84532: createPublicClient({ chain: baseSepolia, transport: http('https://sepolia.base.org', { timeout: 3000 }) })
@@ -38,13 +51,13 @@ async function getWalletBalances(address: Address) {
         );
         const balance = (await Promise.race([balancePromise, timeoutPromise])) as bigint;
         balances[chainId] = {
-          chainName: chainId === 8453 ? 'Base' : chainId === 84532 ? 'Base Sepolia' : 'Chain ' + chainId,
+          chainName: chainId === 4663 ? 'Robinhood' : chainId === 46630 ? 'Robinhood Testnet' : chainId === 8453 ? 'Base' : chainId === 1 ? 'Ethereum' : chainId === 84532 ? 'Base Sepolia' : 'Chain ' + chainId,
           symbol: chainId === 137 ? 'POL' : 'ETH',
           balanceEth: parseFloat(formatEther(balance)).toFixed(4)
         };
       } catch {
         balances[chainId] = {
-          chainName: chainId === 8453 ? 'Base' : chainId === 84532 ? 'Base Sepolia' : 'Chain ' + chainId,
+          chainName: chainId === 4663 ? 'Robinhood' : chainId === 46630 ? 'Robinhood Testnet' : chainId === 8453 ? 'Base' : chainId === 1 ? 'Ethereum' : chainId === 84532 ? 'Base Sepolia' : 'Chain ' + chainId,
           symbol: chainId === 137 ? 'POL' : 'ETH',
           balanceEth: '0.00'
         };

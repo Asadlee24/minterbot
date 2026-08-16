@@ -158,8 +158,9 @@ export default function DropTimerScheduler({ onExecuteMint, walletsCount }: Drop
               disabled={status === 'armed' || status === 'firing'}
               className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm text-stone-900 bg-white/70 focus:outline-none focus:border-[#C8922A] disabled:opacity-50 transition-colors"
             >
+              <option value={4663}>Robinhood Chain (Mainnet)</option>
+              <option value={46630}>Robinhood Testnet</option>
               <option value={84532}>Base Sepolia (Testnet)</option>
-              <option value={4862}>Robinhood Chain</option>
               <option value={8453}>Base Mainnet</option>
               <option value={1}>Ethereum</option>
               <option value={42161}>Arbitrum One</option>

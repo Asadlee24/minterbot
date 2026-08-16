@@ -25,7 +25,11 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
     setLoading(true);
     try {
       const data = await onFetchCollection(slug.trim());
-      setCollectionData(data?.metadata || null);
+      const metadata = data?.metadata || null;
+      setCollectionData(metadata);
+      if (metadata?.networkId) {
+        setChainId(metadata.networkId);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -151,8 +155,9 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
             onChange={(e) => setChainId(parseInt(e.target.value))}
             className="w-full px-4 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-[#C8922A] bg-white/70 font-medium"
           >
-            <option value={84532}>Base Sepolia (Testnet - Recommended)</option>
-            <option value={4862}>Robinhood Chain</option>
+            <option value={4663}>Robinhood Chain (Mainnet)</option>
+            <option value={46630}>Robinhood Testnet</option>
+            <option value={84532}>Base Sepolia (Testnet)</option>
             <option value={8453}>Base Mainnet</option>
             <option value={1}>Ethereum Mainnet</option>
             <option value={42161}>Arbitrum One</option>

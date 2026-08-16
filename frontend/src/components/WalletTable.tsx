@@ -137,6 +137,7 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
             <tr className="bg-stone-100/70 border-b border-stone-200 text-xs font-semibold text-stone-600 uppercase tracking-wider">
               <th className="py-3.5 px-4">Label</th>
               <th className="py-3.5 px-4">Address</th>
+              <th className="py-3.5 px-4">Robinhood Balance</th>
               <th className="py-3.5 px-4">Base Balance</th>
               <th className="py-3.5 px-4">Sepolia Balance</th>
               <th className="py-3.5 px-4 text-right">Actions</th>
@@ -145,7 +146,7 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
           <tbody className="divide-y divide-stone-200/60 text-sm">
             {wallets.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-stone-500 font-medium">
+                <td colSpan={6} className="py-8 text-center text-stone-500 font-medium">
                   No manifest wallets configured. Click "Generate" or "Import" to add wallets.
                 </td>
               </tr>
@@ -164,6 +165,9 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
                         {copiedAddressId === w.id ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                     </div>
+                  </td>
+                  <td className="py-3.5 px-4 font-semibold text-amber-700">
+                    {w.balances?.[4663]?.balanceEth || '0.00'} ETH
                   </td>
                   <td className="py-3.5 px-4 font-semibold text-stone-800">
                     {w.balances?.[8453]?.balanceEth || '0.00'} ETH

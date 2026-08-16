@@ -1,6 +1,30 @@
-import { createPublicClient, createWalletClient, http, formatEther, parseEther, Address, Hex, Chain, Account } from 'viem';
+import { createPublicClient, createWalletClient, http, formatEther, parseEther, Address, Hex, Chain, Account, defineChain } from 'viem';
 import { mainnet, base, arbitrum, polygon, baseSepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
+
+const robinhoodChain = defineChain({
+  id: 4663,
+  name: 'Robinhood Chain',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.RPC_ROBINHOOD || 'https://rpc.mainnet.chain.robinhood.com'] }
+  },
+  blockExplorers: {
+    default: { name: 'RobinhoodScan', url: 'https://explorer.robinhood.com' }
+  }
+});
+
+const robinhoodTestnetChain = defineChain({
+  id: 46630,
+  name: 'Robinhood Testnet',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.RPC_ROBINHOOD_TESTNET || 'https://rpc.testnet.chain.robinhood.com'] }
+  },
+  blockExplorers: {
+    default: { name: 'RobinhoodTestnetScan', url: 'https://testnet.robinhoodchain.blockscout.com' }
+  }
+});
 
 export interface ChainInfo {
   id: number;
@@ -13,6 +37,8 @@ export interface ChainInfo {
 export const SUPPORTED_CHAINS: Record<number, ChainInfo> = {
   1: { id: 1, name: 'Ethereum Mainnet', nativeSymbol: 'ETH', chain: mainnet, defaultRpc: process.env.RPC_ETH || 'https://ethereum-rpc.publicnode.com' },
   8453: { id: 8453, name: 'Base', nativeSymbol: 'ETH', chain: base, defaultRpc: process.env.RPC_BASE || 'https://mainnet.base.org' },
+  4663: { id: 4663, name: 'Robinhood Chain', nativeSymbol: 'ETH', chain: robinhoodChain, defaultRpc: process.env.RPC_ROBINHOOD || 'https://rpc.mainnet.chain.robinhood.com' },
+  46630: { id: 46630, name: 'Robinhood Testnet', nativeSymbol: 'ETH', chain: robinhoodTestnetChain, defaultRpc: process.env.RPC_ROBINHOOD_TESTNET || 'https://rpc.testnet.chain.robinhood.com' },
   42161: { id: 42161, name: 'Arbitrum One', nativeSymbol: 'ETH', chain: arbitrum, defaultRpc: process.env.RPC_ARBITRUM || 'https://arb1.arbitrum.io/rpc' },
   137: { id: 137, name: 'Polygon', nativeSymbol: 'POL', chain: polygon, defaultRpc: process.env.RPC_POLYGON || 'https://polygon-rpc.com' },
   84532: { id: 84532, name: 'Base Sepolia (Testnet)', nativeSymbol: 'ETH', chain: baseSepolia, defaultRpc: process.env.RPC_BASE_SEPOLIA || 'https://sepolia.base.org' }
