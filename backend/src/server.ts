@@ -1,8 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
-import dotenv from 'dotenv';
 
 import { walletService } from './services/wallet.service.js';
 import { openSeaService } from './services/opensea.service.js';
@@ -10,9 +10,6 @@ import { mintEngine } from './services/mint.engine.js';
 import { fundingService } from './services/funding.service.js';
 import { doctorService } from './services/doctor.service.js';
 import { db } from './db/database.js';
-import { dropWatcher } from './services/drop.watcher.js';
-
-dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
@@ -28,13 +25,10 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
-// Socket.io connection logger
-io.on('connection', (socket) => {
-  console.log(`Web Dashboard connected: ${socket.id}`);
-  socket.emit('connected', { status: 'OK', timestamp: new Date().toISOString() });
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
-
-// REST API Endpoints
 
 // 1. Wallets Management
 app.get('/api/wallets', async (req, res) => {

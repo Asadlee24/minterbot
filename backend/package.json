@@ -3,15 +3,14 @@
   "version": "1.0.0",
   "description": "Multi-Wallet OpenSea Minting Engine Node.js Backend",
   "main": "dist/server.js",
+  "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "node node_modules/typescript/lib/tsc.js",
     "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts",
-    "test": "node --import tsx/esm --test src/**/*.test.ts"
+    "dev": "node node_modules/typescript/lib/tsc.js && node dist/server.js"
   },
   "dependencies": {
     "axios": "^1.7.9",
-    "better-sqlite3": "^11.8.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -21,11 +20,9 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.4",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.9.3"
   }
 }
