@@ -120,6 +120,8 @@ export default function DashboardPage() {
           completedCount: walletIds.length,
           totalCount: walletIds.length,
           txHashes: res.txHashes || [],
+          explorerUrl: res.explorer,
+          chainId: payload.chainId,
           logs: res.logs || [
             `[SESSION INITIATED] Target Collection: ${payload.slug || payload.collectionSlug || 'pudgypenguins'}`,
             `[STATUS] Mint session completed for ${walletIds.length} wallet(s)`

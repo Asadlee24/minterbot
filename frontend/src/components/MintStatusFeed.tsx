@@ -10,10 +10,53 @@ export interface ProgressData {
   totalCount: number;
   logs: string[];
   txHashes: string[];
+  explorerUrl?: string;
+  chainId?: number;
 }
 
 interface MintStatusFeedProps {
   progress: ProgressData | null;
+}
+
+const explorerMap: Record<number, string> = {
+  1:     'https://etherscan.io/tx',
+  8453:  'https://basescan.org/tx',
+  4663:  'https://explorer.robinhood.com/tx',
+  46630: 'https://testnet.robinhoodchain.blockscout.com/tx',
+  42161: 'https://arbiscan.io/tx',
+  137:   'https://polygonscan.com/tx',
+  84532: 'https://sepolia.basescan.org/tx'
+};
+
+function getTxExplorerUrl(hash: string, progress: ProgressData): string {
+  // 1. Check if exact full confirmed URL is present in logs
+  for (const log of progress.logs) {
+    if (log.includes(hash)) {
+      const match = log.match(/(https:\/\/[^\s]+\/tx\/0x[a-fA-F0-9]+)/i);
+      if (match) return match[1];
+    }
+  }
+  // 2. Check if progress.explorerUrl is provided
+  if (progress.explorerUrl) {
+    const base = progress.explorerUrl.replace(/\/$/, '');
+    return `${base}/${hash}`;
+  }
+  // 3. Check chainId map
+  if (progress.chainId && explorerMap[progress.chainId]) {
+    return `${explorerMap[progress.chainId]}/${hash}`;
+  }
+  // 4. Inspect logs text for network hints
+  const logStr = progress.logs.join(' ').toLowerCase();
+  if (logStr.includes('robinhood testnet')) {
+    return `https://testnet.robinhoodchain.blockscout.com/tx/${hash}`;
+  }
+  if (logStr.includes('robinhood')) {
+    return `https://explorer.robinhood.com/tx/${hash}`;
+  }
+  if (logStr.includes('base mainnet') || logStr.includes('base (chain 8453)')) {
+    return `https://basescan.org/tx/${hash}`;
+  }
+  return `https://sepolia.basescan.org/tx/${hash}`;
 }
 
 function cleanLog(line: string): string {
@@ -91,7 +134,7 @@ export default function MintStatusFeed({ progress }: MintStatusFeedProps) {
         <div className="bg-stone-950 rounded-xl px-4 py-3 h-44 overflow-y-auto space-y-1">
           {progress.logs.map((log, idx) => {
             const clean = cleanLog(log);
-            const isSuccess = log.includes('SUCCESS') || log.includes('success') || log.includes('executed');
+            const isSuccess = log.includes('SUCCESS') || log.includes('success') || log.includes('executed') || log.includes('broadcasted successfully');
             const isError   = log.includes('ERROR') || log.includes('Error') || log.includes('failed');
             const isNotice  = log.includes('NOTICE') || log.includes('BALANCE') || log.includes('ACCOUNT');
             return (
@@ -115,7 +158,7 @@ export default function MintStatusFeed({ progress }: MintStatusFeedProps) {
               {progress.txHashes.map((hash, i) => (
                 <a
                   key={i}
-                  href={`https://sepolia.basescan.org/tx/${hash}`}
+                  href={getTxExplorerUrl(hash, progress)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-100 border border-stone-200 text-xs font-mono text-stone-700 hover:border-[#C8922A] hover:text-[#C8922A] transition-colors"
