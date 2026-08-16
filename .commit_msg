@@ -1,1 +1,1 @@
-feat: add Robinhood Chain (Chain ID 4862) support across minting, balance tracking, and doctor check
+fix: add missing viem/chains import in mint execute route for Robinhood Chain support

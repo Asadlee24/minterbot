@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { walletStore } from '../../../lib/walletStore';
 import { createPublicClient, http, formatEther, type Address } from 'viem';
 import { defineChain } from 'viem';
+import { mainnet, base, arbitrum, polygon, baseSepolia } from 'viem/chains';
 
 const robinhoodChain = defineChain({
   id: 4862,

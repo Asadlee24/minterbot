@@ -3,6 +3,7 @@ import { walletStore } from '../../../../lib/walletStore';
 import { createWalletClient, createPublicClient, http, parseEther, formatEther, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { defineChain } from 'viem';
+import { mainnet, base, arbitrum, polygon, baseSepolia } from 'viem/chains';
 
 const robinhoodChain = defineChain({
   id: 4862,
