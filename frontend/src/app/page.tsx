@@ -116,11 +116,23 @@ export default function DashboardPage() {
         return;
       }
       const sponsorId = walletIds[0];
-      await executeMint({
+      const res = await executeMint({
         ...payload,
+        collectionSlug: payload.slug || payload.collectionSlug,
         walletIds,
         sponsorWalletId: sponsorId
       });
+      if (res?.success) {
+        setMintProgress({
+          taskId: res.sessionId || `session_${Date.now()}`,
+          status: 'COMPLETED',
+          logs: [
+            res.message || `Mint session initiated for ${walletIds.length} wallet(s)!`,
+            `Target Chain: ID ${payload.chainId || 84532}`,
+            `Collection: ${payload.slug || payload.collectionSlug || 'pudgypenguins'}`
+          ]
+        });
+      }
     } catch (err: any) {
       alert(`Mint trigger failed: ${err.message}`);
     }
