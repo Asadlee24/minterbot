@@ -8,8 +8,9 @@
     "rootDir": "./src",
     "strict": false,
     "noImplicitAny": false,
-    "esModuleInterop": true,
     "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
