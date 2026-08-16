@@ -73,8 +73,24 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
     setTimeout(() => setCopiedKey(false), 2000);
   };
 
+  const handleExportCSV = () => {
+    if (wallets.length === 0) {
+      alert('No wallets to export!');
+      return;
+    }
+    const headers = 'ID,Label,Address\n';
+    const rows = wallets.map((w) => `"${w.id}","${w.label}","${w.address}"`).join('\n');
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wallets_manifest_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="glass-card rounded-2xl p-6 border border-amber-900/10">
+    <div className="glass-card rounded-2xl p-6 border border-amber-900/10 shadow-lg">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="font-serif font-bold text-2xl text-stone-900 flex items-center gap-2">
@@ -83,24 +99,31 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
           <p className="text-stone-500 text-sm">Encrypted AES-256 local storage. Keys never touch third-party servers.</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="p-2.5 rounded-xl border border-stone-300 text-stone-700 hover:border-[#C8922A] hover:text-[#C8922A] transition-colors"
+            className="p-2.5 rounded-xl border border-stone-300 text-stone-700 hover:border-[#C8922A] hover:text-[#C8922A] transition-colors bg-white/70"
             title="Refresh Balances"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
+            onClick={handleExportCSV}
+            className="p-2.5 rounded-xl border border-stone-300 text-stone-700 hover:border-[#C8922A] hover:text-[#C8922A] transition-colors bg-white/70"
+            title="Export CSV Backup"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => setShowGenModal(true)}
-            className="gold-gradient-btn px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-1.5"
+            className="gold-gradient-btn px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-1.5 shadow-md"
           >
             <Plus className="w-4 h-4" /> Generate
           </button>
           <button
             onClick={() => setShowImportModal(true)}
-            className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-800 hover:border-[#C8922A] text-sm font-semibold flex items-center gap-1.5 bg-white/50"
+            className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-800 hover:border-[#C8922A] text-sm font-semibold flex items-center gap-1.5 bg-white/70 shadow-sm"
           >
             <Download className="w-4 h-4" /> Import
           </button>

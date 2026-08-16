@@ -1,23 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
 import WalletTable, { WalletItem } from '../components/WalletTable';
 import DropConfigForm from '../components/DropConfigForm';
 import MintStatusFeed, { ProgressData } from '../components/MintStatusFeed';
 import DoctorCard from '../components/DoctorCard';
+import GasTrackerBar from '../components/GasTrackerBar';
 import { fetchWallets, generateWallets, importWallets, deleteWallet, fetchCollection, executeMint, getSocket } from '../lib/api';
-import { Sparkles, Shield, Cpu, ExternalLink } from 'lucide-react';
-
-// Dynamic import for 3D Hero component to avoid SSR hydration issues
-const NftCrateHero = dynamic(() => import('../components/3d/NftCrateHero'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[400px] flex items-center justify-center">
-      <div className="w-32 h-32 rounded-3xl bg-amber-500/20 animate-pulse border border-[#C8922A]/30" />
-    </div>
-  )
-});
+import { Shield, Cpu } from 'lucide-react';
 
 export default function DashboardPage() {
   const [wallets, setWallets] = useState<WalletItem[]>([]);
@@ -141,7 +131,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
       {/* Wallet Error Banner */}
       {walletError && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
@@ -149,53 +139,34 @@ export default function DashboardPage() {
           <button onClick={() => setWalletError(null)} className="text-red-400 hover:text-red-700 ml-2 font-bold text-base leading-none">×</button>
         </div>
       )}
+
       {/* Top Header Navigation */}
-      <div className="flex items-center justify-between border-b border-amber-900/10 pb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-amber-900/10 pb-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl gold-gradient-btn flex items-center justify-center font-serif font-bold text-xl">
+          <div className="w-10 h-10 rounded-2xl gold-gradient-btn flex items-center justify-center font-serif font-bold text-xl shadow-md">
             Z
           </div>
           <div>
-            <h1 className="font-serif font-bold text-2xl text-stone-900 tracking-tight">OSNM-Z Dashboard</h1>
-            <p className="text-stone-500 text-xs font-mono">Multi-Wallet OpenSea Minting Engine</p>
+            <h1 className="font-serif font-bold text-2xl text-stone-900 tracking-tight flex items-center gap-2">
+              OSNM-Z Dashboard <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-[#C8922A] border border-[#C8922A]/30 font-sans font-semibold">v2.0 Pro</span>
+            </h1>
+            <p className="text-stone-500 text-xs font-mono">Multi-Wallet OpenSea & Robinhood Minting Engine</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-[#C8922A]/30 text-[#C8922A] text-xs font-bold flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 border border-stone-200 text-xs font-semibold text-stone-700 shadow-2xs">
+            <Shield className="w-3.5 h-3.5 text-[#C8922A]" />
+            <span>Wallets: <strong>{wallets.length}</strong></span>
+          </div>
+          <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-[#C8922A]/30 text-[#C8922A] text-xs font-bold flex items-center gap-1.5 shadow-2xs">
             <Cpu className="w-3.5 h-3.5" /> Viem Engine Active
           </span>
         </div>
       </div>
 
-      {/* Hero Section with 3D Canvas */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center glass-card rounded-3xl p-8 border border-amber-900/10 relative overflow-hidden">
-        <div className="lg:col-span-7 space-y-4 z-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-[#C8922A]/20 text-[#C8922A] text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" /> Next-Gen NFT Automation
-          </div>
-          <h2 className="font-serif font-extrabold text-4xl sm:text-5xl text-stone-900 leading-tight">
-            Multi-Wallet OpenSea <span className="gold-text-gradient">Minting Engine</span>
-          </h2>
-          <p className="text-stone-600 text-base leading-relaxed">
-            Execute single, self-funded, and EIP-7702 sponsored mints seamlessly. Multi-chain RPC support, SIWE authentication, aliased GraphQL calldata fetching, and live WebSocket monitoring.
-          </p>
-
-          <div className="flex flex-wrap gap-4 pt-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-stone-700 bg-white/70 px-3.5 py-2 rounded-xl border border-stone-200">
-              <Shield className="w-4 h-4 text-[#C8922A]" /> AES-256 Key Encryption
-            </div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-stone-700 bg-white/70 px-3.5 py-2 rounded-xl border border-stone-200">
-              <Cpu className="w-4 h-4 text-[#C8922A]" /> EIP-7702 Sponsored Gas
-            </div>
-          </div>
-        </div>
-
-        {/* 3D Gold Crate Canvas */}
-        <div className="lg:col-span-5 relative">
-          <NftCrateHero />
-        </div>
-      </div>
+      {/* Live Gas Tracker Bar */}
+      <GasTrackerBar />
 
       {/* Main Control Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
