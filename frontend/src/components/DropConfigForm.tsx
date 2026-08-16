@@ -5,7 +5,7 @@ import { Search, Zap, Shield, Layers, Play, AlertTriangle } from 'lucide-react';
 
 interface DropConfigFormProps {
   onExecuteMint: (payload: any) => void;
-  onFetchCollection: (slug: string) => Promise<any>;
+  onFetchCollection: (slug: string, chainId: number) => Promise<any>;
   walletsCount: number;
 }
 
@@ -24,7 +24,7 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
     if (!slug.trim()) return;
     setLoading(true);
     try {
-      const data = await onFetchCollection(slug.trim());
+      const data = await onFetchCollection(slug.trim(), chainId);
       const metadata = data?.metadata || null;
       setCollectionData(metadata);
       if (metadata?.networkId) {

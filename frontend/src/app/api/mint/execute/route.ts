@@ -68,6 +68,14 @@ const explorerMap: Record<number, string> = {
   84532: 'https://sepolia.basescan.org/tx'
 };
 
+// Only chain IDs that are actually testnets.
+const TESTNET_CHAIN_IDS = new Set<number>([84532, 46630]);
+
+const FAUCET_URLS: Record<number, string> = {
+  84532: 'https://faucet.quicknode.com/base/sepolia',
+  46630: 'https://faucet.robinhood.com'
+};
+
 // Standard ERC-721 / OpenSea-compatible mint ABI fragments
 const MINT_ABI = parseAbi([
   'function mint(uint256 quantity) payable',
@@ -197,9 +205,18 @@ export async function POST(req: NextRequest) {
       logs.push(`Balance: ${balanceEth} ETH on ${targetChain.name}`);
 
       if (balanceWei === BigInt(0)) {
-        logs.push(
-          `Wallet ${account.address.slice(0, 8)}... has 0.00 ETH on ${targetChain.name}. Fund this wallet with ETH to execute real on-chain mints.`
-        );
+        const isTestnet = TESTNET_CHAIN_IDS.has(chainId);
+        if (isTestnet) {
+          const faucetUrl = FAUCET_URLS[chainId];
+          logs.push(
+            `[NOTICE #${i + 1}] Wallet ${account.address.slice(0, 10)}... has 0.00 ETH on ${targetChain.name} (testnet).` +
+              (faucetUrl ? ` Get free testnet ETH from ${faucetUrl} to broadcast on-chain!` : '')
+          );
+        } else {
+          logs.push(
+            `[NOTICE #${i + 1}] Wallet ${account.address.slice(0, 10)}... has 0.00 ETH on ${targetChain.name} (mainnet). Fund this wallet with real ETH to broadcast on-chain.`
+          );
+        }
         continue;
       }
 
@@ -263,12 +280,15 @@ export async function POST(req: NextRequest) {
     }
 
     const completed = txHashes.length;
+    const isTestnet = TESTNET_CHAIN_IDS.has(chainId);
 
     return NextResponse.json({
       success: true,
       message: completed > 0
-        ? `${completed} transaction(s) sent to ${targetChain.name}`
-        : `Mint session complete. Wallets need ETH on ${targetChain.name} to execute transactions.`,
+        ? `Successfully broadcasted ${completed} real on-chain transaction(s) to ${targetChain.name}!`
+        : isTestnet
+          ? `Mint session completed. Wallets need testnet ETH balance to broadcast on-chain.`
+          : `Mint session completed. Wallets need real ETH balance on ${targetChain.name} to broadcast on-chain.`,
       sessionId: `session_${Date.now()}`,
       txHashes,
       logs
