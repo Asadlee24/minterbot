@@ -84,6 +84,12 @@ export const walletStore = {
     return true;
   },
 
+  getDecryptedPrivateKey(id: string): string {
+    const record = wallets.find((w) => w.id === id || w.address.toLowerCase() === id.toLowerCase());
+    if (!record) throw new Error(`Wallet not found for ID ${id}`);
+    return decryptKey(record.encryptedKey, ENCRYPTION_SECRET);
+  },
+
   generate(count: number, labelPrefix = 'Manifest Wallet') {
     const created: Omit<WalletRecord, 'encryptedKey'>[] = [];
     const validCount = Math.min(Math.max(1, count || 1), 50);
