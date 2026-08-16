@@ -84,24 +84,34 @@ const MINT_ABI = parseAbi([
   'function mintTo(address to, uint256 quantity) payable',
 ]);
 
+// Caches for zero-latency lookups
+const contractAddressCache = new Map<string, string>();
+const seaDropCache = new Map<string, any>();
+
 // Attempt to resolve the NFT contract address from OpenSea API or HTML scrape
 async function resolveContractAddress(slug: string): Promise<{ address: string | null; chainId: number | null }> {
+  const cleanSlug = slug.trim().toLowerCase();
+  if (contractAddressCache.has(cleanSlug)) {
+    return { address: contractAddressCache.get(cleanSlug)!, chainId: null };
+  }
+
   try {
     const res = await fetch(
-      `https://api.opensea.io/api/v2/collections/${slug}`,
+      `https://api.opensea.io/api/v2/collections/${cleanSlug}`,
       {
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
           ...(process.env.OPENSEA_API_KEY ? { 'X-API-KEY': process.env.OPENSEA_API_KEY } : {})
         },
-        signal: AbortSignal.timeout(5000)
+        signal: AbortSignal.timeout(2500)
       }
     );
     if (res.ok) {
       const data = await res.json();
       const contract = data?.contracts?.[0];
       if (contract?.address) {
+        contractAddressCache.set(cleanSlug, contract.address);
         return { address: contract.address, chainId: null };
       }
     }
@@ -111,14 +121,15 @@ async function resolveContractAddress(slug: string): Promise<{ address: string |
 
   // Fallback to HTML scrape for collection contract address
   try {
-    const htmlRes = await fetch(`https://opensea.io/collection/${slug}`, {
+    const htmlRes = await fetch(`https://opensea.io/collection/${cleanSlug}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(2500)
     });
     if (htmlRes.ok) {
       const html = await htmlRes.text();
       const match = html.match(/\/item\/[^\/]+\/(0x[a-fA-F0-9]{40})/i) || html.match(/(0x[a-fA-F0-9]{40})/i);
       if (match) {
+        contractAddressCache.set(cleanSlug, match[1]);
         return { address: match[1], chainId: null };
       }
     }
@@ -141,40 +152,52 @@ const SEADROP_ABI = parseAbi([
 ]);
 
 async function resolveSeaDropDetails(publicClient: any, nftContract: string) {
-  for (const seaDrop of CANDIDATE_SEADROPS) {
-    try {
-      const publicDrop: any = await publicClient.readContract({
-        address: seaDrop as Address,
-        abi: SEADROP_ABI,
-        functionName: 'getPublicDrop',
-        args: [nftContract as Address]
-      });
-
-      if (publicDrop && publicDrop.startTime > 0) {
-        let feeRecipient = '0x0000000000000000000000000000000000000000';
-        try {
-          const feeRecipients: any = await publicClient.readContract({
-            address: seaDrop as Address,
-            abi: SEADROP_ABI,
-            functionName: 'getAllowedFeeRecipients',
-            args: [nftContract as Address]
-          });
-          if (Array.isArray(feeRecipients) && feeRecipients.length > 0) {
-            feeRecipient = feeRecipients[0];
-          }
-        } catch {}
-
-        return {
-          seaDropAddress: seaDrop as Address,
-          mintPrice: BigInt(publicDrop.mintPrice || 0),
-          startTime: Number(publicDrop.startTime),
-          endTime: Number(publicDrop.endTime),
-          feeRecipient: feeRecipient as Address
-        };
-      }
-    } catch {}
+  if (seaDropCache.has(nftContract)) {
+    return seaDropCache.get(nftContract);
   }
-  return null;
+
+  const results = await Promise.all(
+    CANDIDATE_SEADROPS.map(async (seaDrop) => {
+      try {
+        const publicDrop: any = await publicClient.readContract({
+          address: seaDrop as Address,
+          abi: SEADROP_ABI,
+          functionName: 'getPublicDrop',
+          args: [nftContract as Address]
+        });
+
+        if (publicDrop && publicDrop.startTime > 0) {
+          let feeRecipient = '0x0000000000000000000000000000000000000000';
+          try {
+            const feeRecipients: any = await publicClient.readContract({
+              address: seaDrop as Address,
+              abi: SEADROP_ABI,
+              functionName: 'getAllowedFeeRecipients',
+              args: [nftContract as Address]
+            });
+            if (Array.isArray(feeRecipients) && feeRecipients.length > 0) {
+              feeRecipient = feeRecipients[0];
+            }
+          } catch {}
+
+          return {
+            seaDropAddress: seaDrop as Address,
+            mintPrice: BigInt(publicDrop.mintPrice || 0),
+            startTime: Number(publicDrop.startTime),
+            endTime: Number(publicDrop.endTime),
+            feeRecipient: feeRecipient as Address
+          };
+        }
+      } catch {}
+      return null;
+    })
+  );
+
+  const found = results.find(Boolean) || null;
+  if (found) {
+    seaDropCache.set(nftContract, found);
+  }
+  return found;
 }
 
 // POST /api/mint/execute
@@ -182,7 +205,6 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const collectionSlug = body.collectionSlug || body.slug;
-    // Default to Base mainnet (8453) — NOT testnet
     const { mode, chainId = 8453, walletIds, quantity = 1 } = body;
 
     if (!collectionSlug) {
@@ -198,7 +220,7 @@ export async function POST(req: NextRequest) {
 
     const publicClient = createPublicClient({
       chain: targetChain,
-      transport: http(rpcUrl, { timeout: 8000 })
+      transport: http(rpcUrl, { timeout: 10000 })
     });
 
     const selectedWalletIds: string[] =
@@ -220,71 +242,79 @@ export async function POST(req: NextRequest) {
     logs.push(`Network: ${targetChain.name} (Chain ${chainId})`);
     logs.push(`Mode: ${(mode || 'single').toLowerCase()}   Wallets: ${selectedWalletIds.length}`);
 
-    // Try to resolve NFT contract address from OpenSea
-    const { address: nftContract } = await resolveContractAddress(collectionSlug);
+    // Try to resolve NFT contract address from passed body or OpenSea
+    let nftContract: string | null = body.address || null;
+    if (!nftContract) {
+      const resolved = await resolveContractAddress(collectionSlug);
+      nftContract = resolved.address;
+    }
+
     if (nftContract) {
       logs.push(`Contract resolved: ${nftContract}`);
     } else {
       logs.push('Contract not resolved via OpenSea — using direct transfer as proof-of-execution');
     }
 
-    for (let i = 0; i < selectedWalletIds.length; i++) {
-      const wId = selectedWalletIds[i];
-      let privateKey: string;
-      try {
-        privateKey = walletStore.getDecryptedPrivateKey(wId);
-      } catch {
-        logs.push(`Wallet ${i + 1}: could not decrypt private key — skipped`);
-        continue;
-      }
+    // Pre-resolve SeaDrop info once for session speed
+    const seaDropInfo = nftContract ? await resolveSeaDropDetails(publicClient, nftContract) : null;
+    if (seaDropInfo) {
+      logs.push(`SeaDrop contract detected: ${seaDropInfo.seaDropAddress}`);
+      const totalValue = seaDropInfo.mintPrice * BigInt(quantity);
+      logs.push(`SeaDrop mint price: ${formatEther(totalValue)} ETH for ${quantity} token(s)`);
+    }
 
-      const account = privateKeyToAccount(privateKey as Hex);
-      logs.push(`Wallet ${i + 1}: ${account.address}`);
-
-      // Fetch balance
-      let balanceWei = BigInt(0);
-      try {
-        balanceWei = await publicClient.getBalance({ address: account.address });
-      } catch {
-        balanceWei = BigInt(0);
-      }
-
-      const balanceEth = parseFloat(formatEther(balanceWei)).toFixed(6);
-      logs.push(`Balance: ${balanceEth} ETH on ${targetChain.name}`);
-
-      if (balanceWei === BigInt(0)) {
-        const isTestnet = TESTNET_CHAIN_IDS.has(chainId);
-        if (isTestnet) {
-          const faucetUrl = FAUCET_URLS[chainId];
-          logs.push(
-            `[NOTICE #${i + 1}] Wallet ${account.address.slice(0, 10)}... has 0.00 ETH on ${targetChain.name} (testnet).` +
-              (faucetUrl ? ` Get free testnet ETH from ${faucetUrl} to broadcast on-chain!` : '')
-          );
-        } else {
-          logs.push(
-            `[NOTICE #${i + 1}] Wallet ${account.address.slice(0, 10)}... has 0.00 ETH on ${targetChain.name} (mainnet). Fund this wallet with real ETH to broadcast on-chain.`
-          );
+    // Concurrent multi-wallet execution
+    await Promise.all(
+      selectedWalletIds.map(async (wId, i) => {
+        let privateKey: string;
+        try {
+          privateKey = walletStore.getDecryptedPrivateKey(wId);
+        } catch {
+          logs.push(`Wallet ${i + 1}: could not decrypt private key — skipped`);
+          return;
         }
-        continue;
-      }
 
-      const walletClient = createWalletClient({
-        account,
-        chain: targetChain,
-        transport: http(rpcUrl)
-      });
+        const account = privateKeyToAccount(privateKey as Hex);
+        logs.push(`Wallet ${i + 1}: ${account.address}`);
 
-      let txHash: string | null = null;
+        // Fetch balance
+        let balanceWei = BigInt(0);
+        try {
+          balanceWei = await publicClient.getBalance({ address: account.address });
+        } catch {
+          balanceWei = BigInt(0);
+        }
 
-      // If we have the NFT contract address, check for SeaDrop contract or fallback mint functions
-      if (nftContract) {
+        const balanceEth = parseFloat(formatEther(balanceWei)).toFixed(6);
+        logs.push(`Balance: ${balanceEth} ETH on ${targetChain.name}`);
+
+        if (balanceWei === BigInt(0)) {
+          const isTestnet = TESTNET_CHAIN_IDS.has(chainId);
+          if (isTestnet) {
+            const faucetUrl = FAUCET_URLS[chainId];
+            logs.push(
+              `[NOTICE #${i + 1}] Wallet ${account.address.slice(0, 10)}... has 0.00 ETH on ${targetChain.name} (testnet).` +
+                (faucetUrl ? ` Get free testnet ETH from ${faucetUrl} to broadcast on-chain!` : '')
+            );
+          } else {
+            logs.push(
+              `[NOTICE #${i + 1}] Wallet ${account.address.slice(0, 10)}... has 0.00 ETH on ${targetChain.name} (mainnet). Fund this wallet with real ETH to broadcast on-chain.`
+            );
+          }
+          return;
+        }
+
+        const walletClient = createWalletClient({
+          account,
+          chain: targetChain,
+          transport: http(rpcUrl)
+        });
+
+        let txHash: string | null = null;
+
         // 1. Try SeaDrop mint contract
-        const seaDropInfo = await resolveSeaDropDetails(publicClient, nftContract);
-        if (seaDropInfo) {
-          logs.push(`SeaDrop contract detected: ${seaDropInfo.seaDropAddress}`);
+        if (nftContract && seaDropInfo) {
           const totalValue = seaDropInfo.mintPrice * BigInt(quantity);
-          logs.push(`SeaDrop mint price: ${formatEther(totalValue)} ETH for ${quantity} token(s)`);
-
           if (balanceWei < totalValue) {
             logs.push(`Insufficient balance for SeaDrop mint price! Required: ${formatEther(totalValue)} ETH, Available: ${balanceEth} ETH`);
           } else {
@@ -312,7 +342,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. If SeaDrop not triggered, try direct contract mint functions
-        if (!txHash) {
+        if (nftContract && !txHash) {
           const mintFunctions = ['mint', 'mintPublic', 'publicMint', 'mintTo'];
 
           for (const fnName of mintFunctions) {
@@ -339,29 +369,29 @@ export async function POST(req: NextRequest) {
             }
           }
         }
-      }
 
-      // Fallback: send a small ETH self-transfer as proof-of-execution
-      if (!txHash) {
-        try {
-          txHash = await walletClient.sendTransaction({
-            account,
-            chain: targetChain,
-            to: account.address,
-            value: parseEther('0.000001'),
-            data: '0x'
-          });
-          logs.push(`Fallback transfer broadcast — no mintable contract found for this slug`);
-        } catch (err: any) {
-          logs.push(`Transaction failed: ${err.message?.slice(0, 150)}`);
+        // 3. Fallback: send a small ETH self-transfer as proof-of-execution
+        if (!txHash) {
+          try {
+            txHash = await walletClient.sendTransaction({
+              account,
+              chain: targetChain,
+              to: account.address,
+              value: parseEther('0.000001'),
+              data: '0x'
+            });
+            logs.push(`Fallback transfer broadcast — no mintable contract found for this slug`);
+          } catch (err: any) {
+            logs.push(`Transaction failed: ${err.message?.slice(0, 150)}`);
+          }
         }
-      }
 
-      if (txHash) {
-        txHashes.push(txHash);
-        logs.push(`Transaction confirmed: ${explorer}/${txHash}`);
-      }
-    }
+        if (txHash) {
+          txHashes.push(txHash);
+          logs.push(`Transaction confirmed: ${explorer}/${txHash}`);
+        }
+      })
+    );
 
     const completed = txHashes.length;
     const isTestnet = TESTNET_CHAIN_IDS.has(chainId);
@@ -375,6 +405,7 @@ export async function POST(req: NextRequest) {
           : `Mint session completed. Wallets need real ETH balance on ${targetChain.name} to broadcast on-chain.`,
       sessionId: `session_${Date.now()}`,
       txHashes,
+      explorer,
       logs
     });
   } catch (err: any) {
