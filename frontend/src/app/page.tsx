@@ -45,17 +45,19 @@ export default function DashboardPage() {
     // Load wallets fast (without balances) first for instant UI, then refresh with balances
     loadWalletsData(true).then(() => loadWalletsData(false));
 
-    // Listen to real-time WebSocket events from backend
+    // Listen to real-time WebSocket events from backend (only if external backend is configured)
     const socket = getSocket();
-    socket.on('mint_progress', (data: ProgressData) => {
-      setMintProgress(data);
-      if (data.status === 'COMPLETED') {
-        loadWalletsData();
-      }
-    });
+    if (socket) {
+      socket.on('mint_progress', (data: ProgressData) => {
+        setMintProgress(data);
+        if (data.status === 'COMPLETED') {
+          loadWalletsData();
+        }
+      });
+    }
 
     return () => {
-      socket.off('mint_progress');
+      if (socket) socket.off('mint_progress');
     };
   }, []);
 
