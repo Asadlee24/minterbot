@@ -126,6 +126,9 @@ export default function DashboardPage() {
         setMintProgress({
           taskId: res.sessionId || `session_${Date.now()}`,
           status: 'COMPLETED',
+          completedCount: walletIds.length,
+          totalCount: walletIds.length,
+          txHashes: [],
           logs: [
             res.message || `Mint session initiated for ${walletIds.length} wallet(s)!`,
             `Target Chain: ID ${payload.chainId || 84532}`,
