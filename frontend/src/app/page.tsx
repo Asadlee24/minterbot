@@ -6,6 +6,7 @@ import DropConfigForm from '../components/DropConfigForm';
 import MintStatusFeed, { ProgressData } from '../components/MintStatusFeed';
 import DoctorCard from '../components/DoctorCard';
 import GasTrackerBar from '../components/GasTrackerBar';
+import DropTimerScheduler from '../components/DropTimerScheduler';
 import { fetchWallets, generateWallets, importWallets, deleteWallet, fetchCollection, executeMint, getSocket } from '../lib/api';
 import { Shield, Cpu } from 'lucide-react';
 
@@ -167,6 +168,12 @@ export default function DashboardPage() {
 
       {/* Live Gas Tracker Bar */}
       <GasTrackerBar />
+
+      {/* Drop Timer & Auto-Mint Scheduler */}
+      <DropTimerScheduler
+        onExecuteMint={handleExecuteMint}
+        walletsCount={wallets.length}
+      />
 
       {/* Main Control Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
