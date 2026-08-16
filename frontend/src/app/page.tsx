@@ -141,28 +141,26 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Top Header Navigation */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-amber-900/10 pb-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-stone-100 pb-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl gold-gradient-btn flex items-center justify-center font-serif font-bold text-xl shadow-md">
+          <div className="w-10 h-10 rounded-2xl gold-gradient-btn flex items-center justify-center font-serif font-bold text-xl shadow-sm">
             Z
           </div>
           <div>
-            <h1 className="font-serif font-bold text-2xl text-stone-900 tracking-tight flex items-center gap-2">
-              OSNM-Z Dashboard <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-[#C8922A] border border-[#C8922A]/30 font-sans font-semibold">v2.0 Pro</span>
-            </h1>
-            <p className="text-stone-500 text-xs font-mono">Multi-Wallet OpenSea & Robinhood Minting Engine</p>
+            <h1 className="font-serif font-bold text-xl text-stone-900 tracking-tight">OSNM-Z Dashboard</h1>
+            <p className="text-stone-400 text-xs">Multi-wallet minting engine — Base, Robinhood, Ethereum</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 border border-stone-200 text-xs font-semibold text-stone-700 shadow-2xs">
-            <Shield className="w-3.5 h-3.5 text-[#C8922A]" />
-            <span>Wallets: <strong>{wallets.length}</strong></span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 border border-stone-200 text-xs text-stone-600 shadow-sm">
+            <Shield className="w-3 h-3 text-[#C8922A]" />
+            <span>{wallets.length} wallet{wallets.length !== 1 ? 's' : ''}</span>
           </div>
-          <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-[#C8922A]/30 text-[#C8922A] text-xs font-bold flex items-center gap-1.5 shadow-2xs">
-            <Cpu className="w-3.5 h-3.5" /> Viem Engine Active
-          </span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-[#C8922A]/20 text-[#C8922A] text-xs font-medium">
+            <Cpu className="w-3 h-3" /> Viem active
+          </div>
         </div>
       </div>
 

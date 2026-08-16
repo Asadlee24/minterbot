@@ -93,7 +93,7 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
 
       {/* Mode Selector */}
       <div>
-        <label className="block text-xs font-semibold uppercase text-stone-600 mb-2">Mint Execution Mode</label>
+        <label className="block text-xs font-medium text-stone-500 mb-2">Execution Mode</label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             type="button"
@@ -145,14 +145,14 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
       {/* Target Chain & Settings */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold uppercase text-stone-600 mb-1">Target Chain</label>
+          <label className="block text-xs font-medium text-stone-500 mb-1">Target Chain</label>
           <select
             value={chainId}
             onChange={(e) => setChainId(parseInt(e.target.value))}
             className="w-full px-4 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-[#C8922A] bg-white/70 font-medium"
           >
             <option value={84532}>Base Sepolia (Testnet - Recommended)</option>
-            <option value={4862}>Robinhood Chain (New ✨)</option>
+            <option value={4862}>Robinhood Chain</option>
             <option value={8453}>Base Mainnet</option>
             <option value={1}>Ethereum Mainnet</option>
             <option value={42161}>Arbitrum One</option>
@@ -161,7 +161,7 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
         </div>
 
         <div>
-          <label className="block text-xs font-semibold uppercase text-stone-600 mb-1">Mint Quantity per Wallet</label>
+          <label className="block text-xs font-medium text-stone-500 mb-1">Quantity per Wallet</label>
           <input
             type="number"
             min={1}

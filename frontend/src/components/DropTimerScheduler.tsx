@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Timer, Zap, AlarmClock, CheckCircle2, XCircle, Play, Square, ChevronRight, Clock } from 'lucide-react';
+import { Timer, Zap, AlarmClock, CheckCircle2, XCircle, Play, Square, Clock } from 'lucide-react';
 
 interface DropTimerProps {
   onExecuteMint: (payload: any) => Promise<void>;
@@ -20,16 +20,23 @@ interface Countdown {
 
 function getCountdown(targetDate: Date): Countdown {
   const now = new Date().getTime();
-  const target = targetDate.getTime();
-  const diff = Math.max(0, target - now);
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-  return { days, hours, minutes, seconds, total: diff };
+  const diff = Math.max(0, targetDate.getTime() - now);
+  return {
+    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+    minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+    seconds: Math.floor((diff % (1000 * 60)) / 1000),
+    total: diff
+  };
 }
+
+const statusConfig = {
+  idle:   { label: 'Not scheduled',          bg: 'bg-stone-100',   border: 'border-stone-200',   text: 'text-stone-500',  dot: 'bg-stone-400' },
+  armed:  { label: 'Scheduled — armed',       bg: 'bg-amber-50',    border: 'border-amber-300',   text: 'text-amber-700',  dot: 'bg-amber-500' },
+  firing: { label: 'Firing — minting now',    bg: 'bg-blue-50',     border: 'border-blue-300',    text: 'text-blue-700',   dot: 'bg-blue-500' },
+  done:   { label: 'Done — mint executed',    bg: 'bg-emerald-50',  border: 'border-emerald-300', text: 'text-emerald-700',dot: 'bg-emerald-500' },
+  failed: { label: 'Failed — see log',        bg: 'bg-red-50',      border: 'border-red-300',     text: 'text-red-700',    dot: 'bg-red-500' },
+};
 
 export default function DropTimerScheduler({ onExecuteMint, walletsCount }: DropTimerProps) {
   const [dropTime, setDropTime] = useState('');
@@ -40,45 +47,25 @@ export default function DropTimerScheduler({ onExecuteMint, walletsCount }: Drop
   const [log, setLog] = useState<string[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const firedRef = useRef(false);
-  const logRef = useRef<HTMLDivElement>(null);
 
   const addLog = useCallback((msg: string) => {
     const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
-    setLog((prev) => [`[${ts}] ${msg}`, ...prev].slice(0, 30));
+    setLog((prev) => [`${ts}  ${msg}`, ...prev].slice(0, 30));
   }, []);
 
   const clearTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
   }, []);
 
   const handleArm = () => {
-    if (!dropTime) {
-      alert('Please set a drop date & time first!');
-      return;
-    }
-    if (!slug.trim()) {
-      alert('Please enter a collection slug!');
-      return;
-    }
-    if (walletsCount === 0) {
-      alert('Please generate or import at least 1 wallet first!');
-      return;
-    }
-
-    const target = new Date(dropTime);
-    if (target <= new Date()) {
-      alert('Drop time must be in the future!');
-      return;
-    }
-
+    if (!dropTime)      return alert('Set a drop date and time first.');
+    if (!slug.trim())   return alert('Enter a collection slug.');
+    if (walletsCount === 0) return alert('Generate or import at least one wallet first.');
+    if (new Date(dropTime) <= new Date()) return alert('Drop time must be in the future.');
     firedRef.current = false;
     setStatus('armed');
-    addLog(`🎯 Scheduler ARMED — Target: ${target.toLocaleString()}`);
-    addLog(`📦 Collection: ${slug} | Chain ID: ${chainId}`);
-    addLog(`👛 ${walletsCount} wallet(s) ready to fire`);
+    addLog(`Scheduler armed — target: ${new Date(dropTime).toLocaleString()}`);
+    addLog(`Collection: ${slug}   Chain: ${chainId}   Wallets: ${walletsCount}`);
   };
 
   const handleDisarm = useCallback(() => {
@@ -86,245 +73,193 @@ export default function DropTimerScheduler({ onExecuteMint, walletsCount }: Drop
     setStatus('idle');
     setCountdown(null);
     firedRef.current = false;
-    addLog('🛑 Scheduler disarmed.');
+    addLog('Scheduler disarmed.');
   }, [clearTimer, addLog]);
 
-  // Countdown ticker
   useEffect(() => {
-    if (status !== 'armed') {
-      clearTimer();
-      return;
-    }
-
+    if (status !== 'armed') { clearTimer(); return; }
     const target = new Date(dropTime);
 
     const tick = async () => {
       const cd = getCountdown(target);
       setCountdown(cd);
-
       if (cd.total <= 0 && !firedRef.current) {
         firedRef.current = true;
         clearTimer();
         setStatus('firing');
-        addLog('🚀 DROP TIME REACHED — Firing mint transaction(s)...');
-
+        addLog('Drop time reached — sending transaction...');
         try {
           await onExecuteMint({ slug, collectionSlug: slug, chainId, mode: 'single' });
           setStatus('done');
-          addLog('✅ Mint successfully executed! Check Mint Status Feed for TX hashes.');
+          addLog('Mint executed — check the Status Feed for transaction hashes.');
         } catch (err: any) {
           setStatus('failed');
-          addLog(`❌ Mint failed: ${err.message}`);
+          addLog(`Error: ${err.message}`);
         }
       }
     };
 
     tick();
     intervalRef.current = setInterval(tick, 1000);
-
     return () => clearTimer();
   }, [status, dropTime, slug, chainId, clearTimer, addLog, onExecuteMint]);
-
-  const statusConfig: Record<SchedulerStatus, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
-    idle: {
-      label: 'Idle — Not Armed',
-      color: 'text-stone-500',
-      bg: 'bg-stone-100',
-      border: 'border-stone-200',
-      icon: <Clock className="w-4 h-4" />
-    },
-    armed: {
-      label: 'ARMED — Waiting for Drop',
-      color: 'text-amber-700',
-      bg: 'bg-amber-50',
-      border: 'border-amber-300',
-      icon: <AlarmClock className="w-4 h-4 animate-pulse" />
-    },
-    firing: {
-      label: 'FIRING — Minting in Progress...',
-      color: 'text-blue-700',
-      bg: 'bg-blue-50',
-      border: 'border-blue-300',
-      icon: <Zap className="w-4 h-4 animate-bounce" />
-    },
-    done: {
-      label: 'DONE — Mint Executed!',
-      color: 'text-emerald-700',
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-300',
-      icon: <CheckCircle2 className="w-4 h-4" />
-    },
-    failed: {
-      label: 'FAILED — Mint Error',
-      color: 'text-red-700',
-      bg: 'bg-red-50',
-      border: 'border-red-300',
-      icon: <XCircle className="w-4 h-4" />
-    }
-  };
 
   const cfg = statusConfig[status];
 
   return (
-    <div className="glass-card rounded-2xl border border-amber-900/10 shadow-lg overflow-hidden">
+    <div className="glass-card rounded-2xl border border-amber-900/10 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-amber-900/10 bg-gradient-to-r from-amber-500/5 to-transparent">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-[#C8922A]/30 flex items-center justify-center text-[#C8922A]">
-            <Timer className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-[#C8922A]/20 flex items-center justify-center text-[#C8922A]">
+            <Timer className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="font-serif font-bold text-lg text-stone-900">Drop Timer & Auto-Mint</h2>
-            <p className="text-stone-500 text-xs font-mono">Schedule mint to fire automatically at drop time</p>
+            <h2 className="font-semibold text-stone-900 text-sm">Auto-Mint Scheduler</h2>
+            <p className="text-stone-400 text-xs">Schedule a mint to fire automatically at drop time</p>
           </div>
         </div>
-        {/* Status Badge */}
-        <span className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 ${cfg.bg} ${cfg.border} ${cfg.color}`}>
-          {cfg.icon} {cfg.label}
-        </span>
+
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium ${cfg.bg} ${cfg.border} ${cfg.text}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} ${status === 'armed' ? 'animate-pulse' : ''}`} />
+          {cfg.label}
+        </div>
       </div>
 
       <div className="p-6 space-y-5">
-        {/* Config Row */}
+        {/* Config */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Collection Slug */}
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1.5">Collection Slug</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">Collection Slug</label>
             <input
               type="text"
-              placeholder="e.g. pudgypenguins"
+              placeholder="pudgypenguins"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               disabled={status === 'armed' || status === 'firing'}
-              className="w-full px-3 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-[#C8922A] bg-white/70 font-mono placeholder:text-stone-400 disabled:opacity-50"
+              className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm text-stone-900 bg-white/70 focus:outline-none focus:border-[#C8922A] placeholder:text-stone-300 disabled:opacity-50 transition-colors"
             />
           </div>
-
-          {/* Drop DateTime */}
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1.5">Drop Date & Time</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">Drop Date & Time</label>
             <input
               type="datetime-local"
               value={dropTime}
               onChange={(e) => setDropTime(e.target.value)}
               disabled={status === 'armed' || status === 'firing'}
-              className="w-full px-3 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-[#C8922A] bg-white/70 disabled:opacity-50"
+              className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm text-stone-900 bg-white/70 focus:outline-none focus:border-[#C8922A] disabled:opacity-50 transition-colors"
             />
           </div>
-
-          {/* Chain */}
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1.5">Target Chain</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">Target Chain</label>
             <select
               value={chainId}
               onChange={(e) => setChainId(parseInt(e.target.value))}
               disabled={status === 'armed' || status === 'firing'}
-              className="w-full px-3 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-[#C8922A] bg-white/70 font-medium disabled:opacity-50"
+              className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm text-stone-900 bg-white/70 focus:outline-none focus:border-[#C8922A] disabled:opacity-50 transition-colors"
             >
               <option value={84532}>Base Sepolia (Testnet)</option>
-              <option value={4862}>Robinhood Chain ✨</option>
+              <option value={4862}>Robinhood Chain</option>
               <option value={8453}>Base Mainnet</option>
-              <option value={1}>Ethereum Mainnet</option>
+              <option value={1}>Ethereum</option>
               <option value={42161}>Arbitrum One</option>
               <option value={137}>Polygon</option>
             </select>
           </div>
         </div>
 
-        {/* Countdown Display */}
+        {/* Countdown */}
         {status === 'armed' && countdown && (
-          <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 via-stone-50 to-amber-500/5 border border-[#C8922A]/30 p-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#C8922A] mb-3 text-center flex items-center justify-center gap-1.5">
-              <AlarmClock className="w-3.5 h-3.5" /> Auto-Firing In...
-            </p>
+          <div className="rounded-2xl border border-[#C8922A]/20 bg-gradient-to-b from-amber-500/5 to-transparent p-5">
+            <p className="text-center text-xs font-medium text-stone-400 mb-4">Minting in</p>
             <div className="grid grid-cols-4 gap-3">
               {[
-                { value: countdown.days, label: 'Days' },
-                { value: countdown.hours, label: 'Hours' },
-                { value: countdown.minutes, label: 'Mins' },
-                { value: countdown.seconds, label: 'Secs' }
-              ].map(({ value, label }) => (
-                <div
-                  key={label}
-                  className="flex flex-col items-center bg-white/80 border border-[#C8922A]/20 rounded-2xl py-4 px-2 shadow-sm"
-                >
-                  <span className="font-mono font-extrabold text-4xl text-stone-900 leading-none tabular-nums">
-                    {String(value).padStart(2, '0')}
+                { v: countdown.days,    l: 'Days' },
+                { v: countdown.hours,   l: 'Hours' },
+                { v: countdown.minutes, l: 'Min' },
+                { v: countdown.seconds, l: 'Sec' },
+              ].map(({ v, l }) => (
+                <div key={l} className="flex flex-col items-center bg-white rounded-2xl py-4 border border-stone-100 shadow-sm">
+                  <span className="font-mono font-bold text-4xl text-stone-900 tabular-nums leading-none">
+                    {String(v).padStart(2, '0')}
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-1.5">{label}</span>
+                  <span className="text-[10px] font-medium text-stone-400 uppercase tracking-widest mt-2">{l}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Firing animation */}
+        {/* Firing */}
         {status === 'firing' && (
-          <div className="rounded-2xl bg-blue-50 border border-blue-200 p-5 flex items-center justify-center gap-3">
-            <Zap className="w-6 h-6 text-blue-600 animate-bounce" />
-            <span className="text-blue-700 font-bold text-sm animate-pulse">Minting in progress... Sending transaction(s) to chain!</span>
+          <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-center gap-3">
+            <Zap className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            <span className="text-sm text-blue-700 font-medium">Sending transaction to chain...</span>
           </div>
         )}
 
         {/* Done */}
         {status === 'done' && (
-          <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-            <span className="text-emerald-700 font-semibold text-sm">Mint executed! Check the Mint Status Feed below for TX hashes.</span>
+          <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 flex items-center gap-3">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+            <span className="text-sm text-emerald-700 font-medium">Mint executed. Check the Status Feed for transaction details.</span>
           </div>
         )}
 
-        {/* Arm / Disarm Buttons */}
+        {/* Failed */}
+        {status === 'failed' && (
+          <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 flex items-center gap-3">
+            <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <span className="text-sm text-red-700 font-medium">Mint failed. See log below for details.</span>
+          </div>
+        )}
+
+        {/* Actions */}
         <div className="flex items-center gap-3">
-          {status === 'idle' || status === 'done' || status === 'failed' ? (
+          {(status === 'idle' || status === 'done' || status === 'failed') && (
             <button
               onClick={handleArm}
-              className="gold-gradient-btn px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md"
+              className="gold-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-sm"
             >
-              <Play className="w-4 h-4" /> Arm Scheduler
+              <Play className="w-3.5 h-3.5 fill-current" /> Arm Scheduler
             </button>
-          ) : status === 'armed' ? (
+          )}
+          {status === 'armed' && (
             <button
               onClick={handleDisarm}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold bg-red-500 text-white flex items-center gap-2 shadow-md hover:bg-red-600 transition-colors"
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-stone-900 text-white flex items-center gap-2 hover:bg-stone-800 transition-colors"
             >
-              <Square className="w-4 h-4" /> Disarm
+              <Square className="w-3.5 h-3.5 fill-current" /> Disarm
             </button>
-          ) : null}
-
-          {status === 'done' || status === 'failed' ? (
+          )}
+          {(status === 'done' || status === 'failed') && (
             <button
               onClick={() => { setStatus('idle'); setLog([]); }}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-stone-300 text-stone-700 bg-white/70 hover:border-[#C8922A] transition-colors"
+              className="px-4 py-2.5 rounded-xl text-sm font-medium border border-stone-200 text-stone-600 hover:border-stone-300 bg-white/70 transition-colors"
             >
               Reset
             </button>
-          ) : null}
-
-          <span className="text-xs text-stone-500 font-mono flex items-center gap-1">
-            <ChevronRight className="w-3 h-3" /> {walletsCount} wallet(s) configured
+          )}
+          <span className="ml-auto text-xs text-stone-400">
+            {walletsCount} wallet{walletsCount !== 1 ? 's' : ''} ready
           </span>
         </div>
 
         {/* Activity Log */}
         {log.length > 0 && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Scheduler Log</p>
-            <div
-              ref={logRef}
-              className="bg-stone-900 rounded-xl p-4 space-y-1 max-h-40 overflow-y-auto font-mono"
-            >
+            <p className="text-xs font-medium text-stone-400 mb-2">Activity log</p>
+            <div className="bg-stone-950 rounded-xl px-4 py-3 space-y-1 max-h-36 overflow-y-auto">
               {log.map((line, i) => (
-                <p
-                  key={i}
-                  className={`text-xs leading-relaxed ${
-                    line.includes('✅') ? 'text-emerald-400' :
-                    line.includes('❌') ? 'text-red-400' :
-                    line.includes('🚀') ? 'text-amber-300' :
-                    line.includes('🎯') ? 'text-blue-300' :
-                    'text-stone-400'
-                  }`}
-                >
+                <p key={i} className={`text-[11px] font-mono leading-relaxed ${
+                  line.includes('Error') || line.includes('failed')
+                    ? 'text-red-400'
+                    : line.includes('executed') || line.includes('Done')
+                    ? 'text-emerald-400'
+                    : line.includes('Firing') || line.includes('Sending')
+                    ? 'text-blue-300'
+                    : 'text-stone-400'
+                }`}>
                   {line}
                 </p>
               ))}
