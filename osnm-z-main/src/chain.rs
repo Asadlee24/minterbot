@@ -58,6 +58,15 @@ pub enum ChainError {
     TransactionHashMismatch,
 }
 
+pub fn get_chain_faucet_url(chain_id: u64) -> &'static str {
+    match chain_id {
+        4663 => "https://faucet.chain.robinhood.com",
+        46630 => "https://faucet.testnet.chain.robinhood.com",
+        84532 | 8453 => "https://faucet.quicknode.com/base/sepolia",
+        _ => "https://faucet.quicknode.com",
+    }
+}
+
 #[derive(Clone)]
 pub struct ChainGateway {
     client: Client,
