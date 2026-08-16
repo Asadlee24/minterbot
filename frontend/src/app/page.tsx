@@ -128,11 +128,10 @@ export default function DashboardPage() {
           status: 'COMPLETED',
           completedCount: walletIds.length,
           totalCount: walletIds.length,
-          txHashes: [],
-          logs: [
-            res.message || `Mint session initiated for ${walletIds.length} wallet(s)!`,
-            `Target Chain: ID ${payload.chainId || 84532}`,
-            `Collection: ${payload.slug || payload.collectionSlug || 'pudgypenguins'}`
+          txHashes: res.txHashes || [],
+          logs: res.logs || [
+            `[SESSION INITIATED] Target Collection: ${payload.slug || payload.collectionSlug || 'pudgypenguins'}`,
+            `[STATUS] Mint session completed for ${walletIds.length} wallet(s)`
           ]
         });
       }
