@@ -2,12 +2,11 @@
   "name": "opensea-mint-backend",
   "version": "1.0.0",
   "description": "Multi-Wallet OpenSea Minting Engine Node.js Backend",
-  "main": "dist/server.js",
+  "main": "src/server.ts",
   "type": "module",
   "scripts": {
-    "build": "node node_modules/typescript/lib/tsc.js",
-    "start": "node dist/server.js",
-    "dev": "node node_modules/typescript/lib/tsc.js && node dist/server.js"
+    "start": "npx tsx src/server.ts",
+    "dev": "npx tsx watch src/server.ts"
   },
   "dependencies": {
     "axios": "^1.7.9",
@@ -23,6 +22,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.4",
-    "typescript": "^5.9.3"
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   }
 }
