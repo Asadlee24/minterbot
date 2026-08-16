@@ -94,7 +94,7 @@ export class MintEngine {
     const action = await openSeaService.getMintAction(collection, account.address, '0', req.quantity || 1);
 
     updateStatus('SUBMITTING', 0, 1, `Submitting EIP-1559 transaction to target ${action.target}...`);
-    const txHash = await walletClient.sendTransaction({
+    const txHash = await (walletClient as any).sendTransaction({
       to: action.target,
       data: action.calldata,
       value: action.value
@@ -147,7 +147,7 @@ export class MintEngine {
             await openSeaService.authenticateWallet(privateKey, req.chainId, req.slug);
             const action = await openSeaService.getMintAction(collection, account.address, '0', req.quantity || 1);
 
-            const hash = await walletClient.sendTransaction({
+            const hash = await (walletClient as any).sendTransaction({
               to: action.target,
               data: action.calldata,
               value: action.value
@@ -283,7 +283,7 @@ export class MintEngine {
       }
     ] as const;
 
-    const txHash = await sponsorWalletClient.writeContract({
+    const txHash = await (sponsorWalletClient as any).writeContract({
       address: req.executorAddress,
       abi,
       functionName: 'executeBatch',

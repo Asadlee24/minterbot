@@ -16,7 +16,7 @@ export class FundingService {
       const records = walletService.getDecryptedPrivateKey(wId);
       const { account: targetAccount } = viemService.getWalletClient(records, chainId);
 
-      const hash = await sponsorClient.sendTransaction({
+      const hash = await (sponsorClient as any).sendTransaction({
         to: targetAccount.address,
         value: amountWei
       });
@@ -45,7 +45,7 @@ export class FundingService {
 
         if (balance > gasCost) {
           const sweepAmount = balance - gasCost;
-          const hash = await walletClient.sendTransaction({
+          const hash = await (walletClient as any).sendTransaction({
             to: recipientAddress,
             value: sweepAmount
           });
