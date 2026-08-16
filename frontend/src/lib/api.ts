@@ -60,41 +60,51 @@ export async function deleteWallet(id: string) {
   return data;
 }
 
+async function safeJsonFetch(url: string, options?: RequestInit) {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`Server returned non-JSON response (${res.status} ${res.statusText})`);
+  }
+  if (!res.ok || (data && data.success === false)) {
+    throw new Error(data?.error || `Request failed with status ${res.status}`);
+  }
+  return data;
+}
+
 export async function fetchCollection(slug: string) {
-  const res = await fetch(`${EXTERNAL_BACKEND}/api/opensea/collection/${slug}`);
-  return res.json();
+  return safeJsonFetch(`${WALLET_API}/api/opensea/collection/${slug}`);
 }
 
 export async function executeMint(payload: any) {
-  const res = await fetch(`${EXTERNAL_BACKEND}/api/mint/execute`, {
+  return safeJsonFetch(`${WALLET_API}/api/mint/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return res.json();
 }
 
 export async function fundWallets(payload: any) {
-  const res = await fetch(`${EXTERNAL_BACKEND}/api/funding/fund`, {
+  return safeJsonFetch(`${WALLET_API}/api/funding/fund`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return res.json();
 }
 
 export async function sweepWallets(payload: any) {
-  const res = await fetch(`${EXTERNAL_BACKEND}/api/funding/sweep`, {
+  return safeJsonFetch(`${WALLET_API}/api/funding/sweep`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return res.json();
 }
 
 export async function runDoctorCheck(executorAddress?: string, chainId = 84532) {
   const query = new URLSearchParams({ chainId: chainId.toString() });
   if (executorAddress) query.append('executorAddress', executorAddress);
-  const res = await fetch(`${EXTERNAL_BACKEND}/api/doctor?${query.toString()}`);
-  return res.json();
+  return safeJsonFetch(`${WALLET_API}/api/doctor?${query.toString()}`);
 }
