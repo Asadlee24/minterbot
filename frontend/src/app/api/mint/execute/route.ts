@@ -129,6 +129,54 @@ async function resolveContractAddress(slug: string): Promise<{ address: string |
   return { address: null, chainId: null };
 }
 
+const CANDIDATE_SEADROPS = [
+  '0x00005ea00ac477b1030ce78506496e8c2de24bf5',
+  '0x00000000006c3852cbef3e08e8df289169eded58'
+];
+
+const SEADROP_ABI = parseAbi([
+  'function getPublicDrop(address nftContract) view returns ((uint80 mintPrice, uint48 startTime, uint48 endTime, uint16 maxTotalMintableByWallet, uint16 feeBps, bool restrictFeeRecipients))',
+  'function getAllowedFeeRecipients(address nftContract) view returns (address[])',
+  'function mintPublic(address nftContract, address feeRecipient, address minterIfNotPayer, uint256 quantity) payable'
+]);
+
+async function resolveSeaDropDetails(publicClient: any, nftContract: string) {
+  for (const seaDrop of CANDIDATE_SEADROPS) {
+    try {
+      const publicDrop: any = await publicClient.readContract({
+        address: seaDrop as Address,
+        abi: SEADROP_ABI,
+        functionName: 'getPublicDrop',
+        args: [nftContract as Address]
+      });
+
+      if (publicDrop && publicDrop.startTime > 0) {
+        let feeRecipient = '0x0000000000000000000000000000000000000000';
+        try {
+          const feeRecipients: any = await publicClient.readContract({
+            address: seaDrop as Address,
+            abi: SEADROP_ABI,
+            functionName: 'getAllowedFeeRecipients',
+            args: [nftContract as Address]
+          });
+          if (Array.isArray(feeRecipients) && feeRecipients.length > 0) {
+            feeRecipient = feeRecipients[0];
+          }
+        } catch {}
+
+        return {
+          seaDropAddress: seaDrop as Address,
+          mintPrice: BigInt(publicDrop.mintPrice || 0),
+          startTime: Number(publicDrop.startTime),
+          endTime: Number(publicDrop.endTime),
+          feeRecipient: feeRecipient as Address
+        };
+      }
+    } catch {}
+  }
+  return null;
+}
+
 // POST /api/mint/execute
 export async function POST(req: NextRequest) {
   try {
@@ -228,31 +276,67 @@ export async function POST(req: NextRequest) {
 
       let txHash: string | null = null;
 
-      // If we have the NFT contract address, try calling the mint function
+      // If we have the NFT contract address, check for SeaDrop contract or fallback mint functions
       if (nftContract) {
-        const mintFunctions = ['mint', 'mintPublic', 'publicMint', 'mintTo'];
+        // 1. Try SeaDrop mint contract
+        const seaDropInfo = await resolveSeaDropDetails(publicClient, nftContract);
+        if (seaDropInfo) {
+          logs.push(`SeaDrop contract detected: ${seaDropInfo.seaDropAddress}`);
+          const totalValue = seaDropInfo.mintPrice * BigInt(quantity);
+          logs.push(`SeaDrop mint price: ${formatEther(totalValue)} ETH for ${quantity} token(s)`);
 
-        for (const fnName of mintFunctions) {
-          try {
-            const args = (fnName === 'mintTo'
-              ? [account.address, BigInt(quantity)]
-              : [BigInt(quantity)]) as any;
+          if (balanceWei < totalValue) {
+            logs.push(`Insufficient balance for SeaDrop mint price! Required: ${formatEther(totalValue)} ETH, Available: ${balanceEth} ETH`);
+          } else {
+            try {
+              txHash = await walletClient.writeContract({
+                address: seaDropInfo.seaDropAddress,
+                abi: SEADROP_ABI,
+                functionName: 'mintPublic',
+                args: [
+                  nftContract as Address,
+                  seaDropInfo.feeRecipient,
+                  '0x0000000000000000000000000000000000000000' as Address,
+                  BigInt(quantity)
+                ],
+                value: totalValue,
+                chain: targetChain,
+                account
+              });
+              logs.push(`SeaDrop mintPublic transaction broadcasted successfully!`);
+            } catch (err: any) {
+              const msg = err.message?.slice(0, 150) || 'unknown error';
+              logs.push(`SeaDrop mintPublic failed: ${msg}`);
+            }
+          }
+        }
 
-            txHash = await walletClient.writeContract({
-              address: nftContract as Address,
-              abi: MINT_ABI,
-              functionName: fnName as any,
-              args,
-              value: parseEther('0'),
-              chain: targetChain,
-              account
-            });
+        // 2. If SeaDrop not triggered, try direct contract mint functions
+        if (!txHash) {
+          const mintFunctions = ['mint', 'mintPublic', 'publicMint', 'mintTo'];
 
-            logs.push(`Mint function "${fnName}" called successfully`);
-            break;
-          } catch (err: any) {
-            const msg = err.message?.slice(0, 120) || 'unknown error';
-            logs.push(`Function "${fnName}" failed: ${msg}`);
+          for (const fnName of mintFunctions) {
+            try {
+              const args = (fnName === 'mintTo'
+                ? [account.address, BigInt(quantity)]
+                : [BigInt(quantity)]) as any;
+
+              txHash = await walletClient.writeContract({
+                address: nftContract as Address,
+                abi: MINT_ABI,
+                functionName: fnName as any,
+                args,
+                value: parseEther('0'),
+                chain: targetChain,
+                account
+              });
+
+              logs.push(`Mint function "${fnName}" called successfully`);
+              break;
+            } catch (err: any) {
+              const msg = err.message?.slice(0, 120) || 'unknown error';
+              logs.push(`Function "${fnName}" failed: ${msg}`);
+            }
           }
         }
       }
