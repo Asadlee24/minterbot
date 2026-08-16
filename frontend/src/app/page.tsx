@@ -22,24 +22,28 @@ const NftCrateHero = dynamic(() => import('../components/3d/NftCrateHero'), {
 export default function DashboardPage() {
   const [wallets, setWallets] = useState<WalletItem[]>([]);
   const [loadingWallets, setLoadingWallets] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
   const [mintProgress, setMintProgress] = useState<ProgressData | null>(null);
 
-  const loadWalletsData = async () => {
+  const loadWalletsData = async (fast = false) => {
     setLoadingWallets(true);
+    setWalletError(null);
     try {
-      const res = await fetchWallets();
+      const res = await fetchWallets(fast);
       if (res?.wallets) {
         setWallets(res.wallets);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load wallets:', err);
+      setWalletError(err.message || 'Failed to load wallets');
     } finally {
       setLoadingWallets(false);
     }
   };
 
   useEffect(() => {
-    loadWalletsData();
+    // Load wallets fast (without balances) first for instant UI, then refresh with balances
+    loadWalletsData(true).then(() => loadWalletsData(false));
 
     // Listen to real-time WebSocket events from backend
     const socket = getSocket();
@@ -57,11 +61,18 @@ export default function DashboardPage() {
 
   const handleGenerateWallets = async (count: number) => {
     setLoadingWallets(true);
+    setWalletError(null);
     try {
-      await generateWallets(count);
-      await loadWalletsData();
-    } catch (err) {
+      const res = await generateWallets(count);
+      if (res?.wallets) {
+        // Optimistically add generated wallets immediately
+        setWallets((prev) => [...prev, ...res.wallets].sort((a, b) => a.label.localeCompare(b.label)));
+      }
+      // Then refresh with balances in background
+      loadWalletsData(false);
+    } catch (err: any) {
       console.error(err);
+      setWalletError(err.message || 'Failed to generate wallets');
     } finally {
       setLoadingWallets(false);
     }
@@ -69,11 +80,18 @@ export default function DashboardPage() {
 
   const handleImportWallets = async (keys: string[]) => {
     setLoadingWallets(true);
+    setWalletError(null);
     try {
-      await importWallets(keys);
-      await loadWalletsData();
-    } catch (err) {
+      const res = await importWallets(keys);
+      if (res?.wallets) {
+        // Optimistically add imported wallets immediately
+        setWallets((prev) => [...prev, ...res.wallets].sort((a, b) => a.label.localeCompare(b.label)));
+      }
+      // Then refresh with balances in background
+      loadWalletsData(false);
+    } catch (err: any) {
       console.error(err);
+      setWalletError(err.message || 'Failed to import wallets');
     } finally {
       setLoadingWallets(false);
     }
@@ -108,6 +126,13 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+      {/* Wallet Error Banner */}
+      {walletError && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
+          <span className="flex-1">⚠️ {walletError}</span>
+          <button onClick={() => setWalletError(null)} className="text-red-400 hover:text-red-700 ml-2 font-bold text-base leading-none">×</button>
+        </div>
+      )}
       {/* Top Header Navigation */}
       <div className="flex items-center justify-between border-b border-amber-900/10 pb-6">
         <div className="flex items-center gap-3">

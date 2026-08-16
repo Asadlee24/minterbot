@@ -53,7 +53,11 @@ export class ViemService {
         const chainId = Number(chainIdStr);
         try {
           const client = this.getPublicClient(chainId);
-          const balance = await client.getBalance({ address });
+          const balancePromise = client.getBalance({ address });
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('RPC Timeout')), 2500)
+          );
+          const balance = (await Promise.race([balancePromise, timeoutPromise])) as bigint;
           results[chainId] = {
             chainName: info.name,
             symbol: info.nativeSymbol,

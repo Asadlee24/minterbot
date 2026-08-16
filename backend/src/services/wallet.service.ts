@@ -20,8 +20,9 @@ export class WalletService {
    */
   public async generateWallets(count: number, labelPrefix: string = 'Manifest Wallet'): Promise<PublicWalletInfo[]> {
     const created: PublicWalletInfo[] = [];
+    const validCount = Math.min(Math.max(1, count || 1), 50);
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < validCount; i++) {
       const privateKey = generatePrivateKey();
       const account = privateKeyToAccount(privateKey);
       const encryptedKey = encryptPrivateKey(privateKey, ENCRYPTION_SECRET);
@@ -45,25 +46,38 @@ export class WalletService {
    */
   public async importWallets(privateKeys: string[], labelPrefix: string = 'Imported Wallet'): Promise<PublicWalletInfo[]> {
     const imported: PublicWalletInfo[] = [];
+    const existingCount = db.getWallets().length;
 
     for (let i = 0; i < privateKeys.length; i++) {
-      let keyHex = privateKeys[i].trim();
-      if (!keyHex.startsWith('0x')) {
-        keyHex = `0x${keyHex}`;
+      let raw = privateKeys[i] ? privateKeys[i].trim().replace(/^['"]|['"]$/g, '') : '';
+      if (!raw) continue;
+
+      let keyHex = raw.startsWith('0x') ? raw : `0x${raw}`;
+
+      if (!/^0x[0-9a-fA-F]{64}$/.test(keyHex)) {
+        throw new Error(`Invalid private key format at index ${i + 1}. Expected 64 hex characters (0x...).`);
       }
 
-      const account = privateKeyToAccount(keyHex as Hex);
-      const encryptedKey = encryptPrivateKey(keyHex, ENCRYPTION_SECRET);
-      const id = `w_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-      const label = `${labelPrefix} #${i + 1}`;
+      try {
+        const account = privateKeyToAccount(keyHex as Hex);
+        const encryptedKey = encryptPrivateKey(keyHex, ENCRYPTION_SECRET);
+        const id = `w_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        const label = `${labelPrefix} #${existingCount + imported.length + 1}`;
 
-      db.saveWallet(id, account.address, encryptedKey, label);
-      imported.push({
-        id,
-        address: account.address,
-        label,
-        createdAt: new Date().toISOString()
-      });
+        db.saveWallet(id, account.address, encryptedKey, label);
+        imported.push({
+          id,
+          address: account.address,
+          label,
+          createdAt: new Date().toISOString()
+        });
+      } catch (err: any) {
+        throw new Error(`Failed to import key at index ${i + 1}: ${err.message}`);
+      }
+    }
+
+    if (imported.length === 0) {
+      throw new Error('No valid private keys provided to import.');
     }
 
     return imported;
@@ -72,8 +86,20 @@ export class WalletService {
   /**
    * Returns all wallet records with multi-chain balances (public info only).
    */
-  public async listWalletsWithBalances(): Promise<PublicWalletInfo[]> {
+  public async listWalletsWithBalances(includeBalances: boolean = true): Promise<PublicWalletInfo[]> {
     const records = db.getWallets();
+
+    if (!includeBalances) {
+      return records
+        .map((rec) => ({
+          id: rec.id,
+          address: rec.address,
+          label: rec.label,
+          createdAt: rec.createdAt
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }
+
     const result: PublicWalletInfo[] = [];
 
     await Promise.all(

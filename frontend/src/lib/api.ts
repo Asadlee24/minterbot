@@ -11,9 +11,13 @@ export function getSocket(): Socket {
   return socket;
 }
 
-export async function fetchWallets() {
-  const res = await fetch(`${API_BASE}/api/wallets`);
-  return res.json();
+export async function fetchWallets(fast = false) {
+  const res = await fetch(`${API_BASE}/api/wallets${fast ? '?fast=true' : ''}`);
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || 'Failed to fetch wallets');
+  }
+  return data;
 }
 
 export async function generateWallets(count: number, labelPrefix?: string) {
@@ -22,7 +26,11 @@ export async function generateWallets(count: number, labelPrefix?: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ count, labelPrefix })
   });
-  return res.json();
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || 'Failed to generate wallets');
+  }
+  return data;
 }
 
 export async function importWallets(privateKeys: string[], labelPrefix?: string) {
@@ -31,12 +39,20 @@ export async function importWallets(privateKeys: string[], labelPrefix?: string)
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ privateKeys, labelPrefix })
   });
-  return res.json();
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || 'Failed to import wallets');
+  }
+  return data;
 }
 
 export async function deleteWallet(id: string) {
   const res = await fetch(`${API_BASE}/api/wallets/${id}`, { method: 'DELETE' });
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to delete wallet');
+  }
+  return data;
 }
 
 export async function fetchCollection(slug: string) {

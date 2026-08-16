@@ -33,7 +33,9 @@ app.get('/api/health', (req, res) => {
 // 1. Wallets Management
 app.get('/api/wallets', async (req, res) => {
   try {
-    const wallets = await walletService.listWalletsWithBalances();
+    // Use ?fast=true to skip balance fetching for instant response
+    const fast = req.query.fast === 'true';
+    const wallets = await walletService.listWalletsWithBalances(!fast);
     res.json({ success: true, wallets });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -43,7 +45,10 @@ app.get('/api/wallets', async (req, res) => {
 app.post('/api/wallets/generate', async (req, res) => {
   try {
     const { count, labelPrefix } = req.body;
-    const created = await walletService.generateWallets(count || 1, labelPrefix);
+    if (count !== undefined && (isNaN(Number(count)) || Number(count) < 1)) {
+      return res.status(400).json({ success: false, error: 'count must be a positive number' });
+    }
+    const created = await walletService.generateWallets(Number(count) || 1, labelPrefix);
     res.json({ success: true, wallets: created });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -54,12 +59,12 @@ app.post('/api/wallets/import', async (req, res) => {
   try {
     const { privateKeys, labelPrefix } = req.body;
     if (!Array.isArray(privateKeys) || privateKeys.length === 0) {
-      return res.status(400).json({ success: false, error: 'privateKeys array required' });
+      return res.status(400).json({ success: false, error: 'privateKeys array is required and must not be empty' });
     }
     const imported = await walletService.importWallets(privateKeys, labelPrefix);
     res.json({ success: true, wallets: imported });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 
