@@ -1,1 +1,1 @@
-feat: integrate real viem on-chain transaction signing and broadcast to Base Sepolia blockchain
+feat: add Robinhood Chain (Chain ID 4862) support across minting, balance tracking, and doctor check

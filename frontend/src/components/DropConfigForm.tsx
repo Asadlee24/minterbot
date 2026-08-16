@@ -149,9 +149,10 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
           <select
             value={chainId}
             onChange={(e) => setChainId(parseInt(e.target.value))}
-            className="w-full px-4 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-[#C8922A] bg-white/70"
+            className="w-full px-4 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-[#C8922A] bg-white/70 font-medium"
           >
             <option value={84532}>Base Sepolia (Testnet - Recommended)</option>
+            <option value={4862}>Robinhood Chain (New ✨)</option>
             <option value={8453}>Base Mainnet</option>
             <option value={1}>Ethereum Mainnet</option>
             <option value={42161}>Arbitrum One</option>

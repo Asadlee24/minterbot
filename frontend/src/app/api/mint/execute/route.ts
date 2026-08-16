@@ -2,11 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { walletStore } from '../../../../lib/walletStore';
 import { createWalletClient, createPublicClient, http, parseEther, formatEther, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { mainnet, base, arbitrum, polygon, baseSepolia } from 'viem/chains';
+import { defineChain } from 'viem';
+
+const robinhoodChain = defineChain({
+  id: 4862,
+  name: 'Robinhood Chain',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.RPC_ROBINHOOD || 'https://rpc.robinhood.com'] }
+  },
+  blockExplorers: {
+    default: { name: 'RobinhoodScan', url: 'https://explorer.robinhood.com' }
+  }
+});
 
 const chainMap: Record<number, any> = {
   1: mainnet,
   8453: base,
+  4862: robinhoodChain,
   42161: arbitrum,
   137: polygon,
   84532: baseSepolia
@@ -15,6 +28,7 @@ const chainMap: Record<number, any> = {
 const rpcMap: Record<number, string> = {
   1: 'https://ethereum-rpc.publicnode.com',
   8453: 'https://mainnet.base.org',
+  4862: process.env.RPC_ROBINHOOD || 'https://rpc.robinhood.com',
   42161: 'https://arb1.arbitrum.io/rpc',
   137: 'https://polygon-rpc.com',
   84532: 'https://sepolia.base.org'

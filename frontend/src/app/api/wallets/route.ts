@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { walletStore } from '../../../lib/walletStore';
 import { createPublicClient, http, formatEther, type Address } from 'viem';
-import { mainnet, base, arbitrum, polygon, baseSepolia } from 'viem/chains';
+import { defineChain } from 'viem';
+
+const robinhoodChain = defineChain({
+  id: 4862,
+  name: 'Robinhood Chain',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.RPC_ROBINHOOD || 'https://rpc.robinhood.com'] }
+  },
+  blockExplorers: {
+    default: { name: 'RobinhoodScan', url: 'https://explorer.robinhood.com' }
+  }
+});
 
 const publicClients: Record<number, any> = {
   1: createPublicClient({ chain: mainnet, transport: http('https://ethereum-rpc.publicnode.com', { timeout: 3000 }) }),
   8453: createPublicClient({ chain: base, transport: http('https://mainnet.base.org', { timeout: 3000 }) }),
+  4862: createPublicClient({ chain: robinhoodChain, transport: http(process.env.RPC_ROBINHOOD || 'https://rpc.robinhood.com', { timeout: 3000 }) }),
   42161: createPublicClient({ chain: arbitrum, transport: http('https://arb1.arbitrum.io/rpc', { timeout: 3000 }) }),
   137: createPublicClient({ chain: polygon, transport: http('https://polygon-rpc.com', { timeout: 3000 }) }),
   84532: createPublicClient({ chain: baseSepolia, transport: http('https://sepolia.base.org', { timeout: 3000 }) })
