@@ -10,22 +10,18 @@ import { mintEngine } from './services/mint.engine.js';
 import { fundingService } from './services/funding.service.js';
 import { doctorService } from './services/doctor.service.js';
 import { db } from './db/database.js';
+import { dropWatcher } from './services/drop.watcher.js';
 
 const app = express();
 const server = http.createServer(app);
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
-
+const io = new SocketIOServer(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(express.json());
 
-// Health check endpoint
+dropWatcher.setEventEmitter((event, payload) => io.emit(event, payload));
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
@@ -33,7 +29,6 @@ app.get('/api/health', (req, res) => {
 // 1. Wallets Management
 app.get('/api/wallets', async (req, res) => {
   try {
-    // Use ?fast=true to skip balance fetching for instant response
     const fast = req.query.fast === 'true';
     const wallets = await walletService.listWalletsWithBalances(!fast);
     res.json({ success: true, wallets });
@@ -96,12 +91,49 @@ app.get('/api/opensea/eligibility/:slug/:address', async (req, res) => {
   }
 });
 
-// 3. Mint Execution (Triggers WebSocket events)
+// 3. Persistent backend scheduler
+app.get('/api/scheduler', (req, res) => {
+  try {
+    res.json({ success: true, scheduler: dropWatcher.getScheduler() });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/scheduler/arm', async (req, res) => {
+  try {
+    const scheduler = await dropWatcher.armScheduler(req.body);
+    res.status(201).json({ success: true, scheduler });
+  } catch (err: any) {
+    const active = /already (ARMED|CHECKING|FIRING)/i.test(err.message || '');
+    res.status(active ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/scheduler/disarm', async (req, res) => {
+  try {
+    const scheduler = await dropWatcher.disarmScheduler();
+    res.json({ success: true, scheduler });
+  } catch (err: any) {
+    res.status(409).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/scheduler/logs', (req, res) => {
+  try {
+    const schedulerId = typeof req.query.schedulerId === 'string' ? req.query.schedulerId : undefined;
+    const logs = db.getSchedulerLogs(schedulerId, 100);
+    res.json({ success: true, logs });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Mint Execution (manual endpoint; scheduler invokes the same engine directly)
 app.post('/api/mint/execute', async (req, res) => {
   try {
     const reqBody = req.body;
     res.json({ success: true, message: 'Mint task initiated in background' });
-
     mintEngine.executeMintSession(reqBody, (progress) => {
       io.emit('mint_progress', progress);
     }).catch((err) => {
@@ -112,7 +144,7 @@ app.post('/api/mint/execute', async (req, res) => {
   }
 });
 
-// 4. Funding & Sweep
+// 5. Funding & Sweep
 app.post('/api/funding/fund', async (req, res) => {
   try {
     const { sponsorWalletId, targetWalletIds, amountEth, chainId } = req.body;
@@ -133,7 +165,7 @@ app.post('/api/funding/sweep', async (req, res) => {
   }
 });
 
-// 5. System Doctor Safety Check
+// 6. System Doctor Safety Check
 app.get('/api/doctor', async (req, res) => {
   try {
     const executor = req.query.executorAddress as string | undefined;
@@ -145,7 +177,7 @@ app.get('/api/doctor', async (req, res) => {
   }
 });
 
-// 6. Mint History Logs
+// 7. Mint History Logs
 app.get('/api/logs', (req, res) => {
   try {
     const logs = db.getMintLogs(100);
@@ -156,8 +188,10 @@ app.get('/api/logs', (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`=================================================`);
+  console.log('=================================================');
   console.log(`🚀 OpenSea Mint Backend Engine running on port ${PORT}`);
-  console.log(`📡 WebSocket server listening for dashboard events`);
-  console.log(`=================================================`);
+  console.log('📡 WebSocket server listening for dashboard events');
+  console.log('=================================================');
+  // Database is already initialized before server startup; recovery never depends on a browser.
+  dropWatcher.recoverScheduler();
 });
