@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { db, SchedulerRecord, SchedulerStatus } from '../db/database.js';
+import { db, SchedulerRecord } from '../db/database.js';
 import { openSeaService } from './opensea.service.js';
-import { mintEngine, MintTaskRequest, MintTaskProgress } from './mint.engine.js';
+import { mintEngine } from './mint.engine.js';
+import type { MintTaskRequest, MintTaskProgress } from './mint.engine.js';
 
 export interface DropFilter {
   minSupply?: number;
@@ -24,11 +25,11 @@ export interface SchedulerArmRequest {
 export type SchedulerEventEmitter = (event: string, payload: any) => void;
 
 const POLL_FAR_MS = 30_000;
+const POLL_MID_MS = 10_000;
 const POLL_APPROACHING_MS = 3_000;
 const POLL_CLOSE_MS = 750;
-const POLL_VERY_FAR_MS = 30_000;
 const FAR_THRESHOLD_MS = 10 * 60_000;
-const APPROACHING_THRESHOLD_MS = 2 * 60_000;
+const MID_THRESHOLD_MS = 2 * 60_000;
 const CLOSE_THRESHOLD_MS = 30_000;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -89,7 +90,6 @@ export class DropWatcher {
       throw new Error(`Scheduler ${existing.id} is already ${existing.status}`);
     }
 
-    const now = new Date().toISOString();
     const scheduler: SchedulerRecord = {
       id: `scheduler_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       slug: request.slug.trim(),
@@ -105,7 +105,7 @@ export class DropWatcher {
       monitoringState: 'MONITORING',
       availabilityState: 'UNKNOWN',
       logs: [],
-      updatedAt: now
+      updatedAt: new Date().toISOString()
     };
 
     db.saveScheduler(scheduler);
@@ -123,7 +123,8 @@ export class DropWatcher {
     if (current.status === 'FIRING') throw new Error('Scheduler is already firing and cannot be disarmed safely');
     if (current.status === 'DONE' || current.status === 'FAILED' || current.status === 'IDLE') return current;
 
-    const claimed = db.claimSchedulerStatus(current.id, current.status as 'ARMED' | 'CHECKING', 'IDLE');
+    const from = current.status === 'ARMED' ? 'ARMED' : 'CHECKING';
+    const claimed = db.claimSchedulerStatus(current.id, from, 'IDLE');
     if (!claimed) throw new Error('Scheduler changed state before it could be disarmed');
     db.updateScheduler({ monitoringState: 'IDLE', nextCheckAt: undefined });
     this.log(current.id, 'Scheduler disarmed.');
@@ -143,8 +144,6 @@ export class DropWatcher {
     }
 
     if (scheduler.status === 'FIRING') {
-      // Never replay a claimed mint after a process restart. The previous execution may already
-      // have reached the chain, so replaying it would violate the scheduler's exactly-once trigger.
       db.updateScheduler({
         status: 'FAILED',
         monitoringState: 'FAILED',
@@ -231,7 +230,6 @@ export class DropWatcher {
           return;
         }
 
-        // Once the expected time has passed, keep polling instead of treating the countdown as authoritative.
         await sleep(delay);
       }
     } finally {
@@ -254,9 +252,7 @@ export class DropWatcher {
     this.log(schedulerId, 'Mint engine started. Existing OpenSea authentication, calldata, wallet execution, sponsorship and gas handling are preserved.');
 
     try {
-      let finalProgress: MintTaskProgress | null = null;
-      const result = await mintEngine.executeMintSession(request, (progress) => {
-        finalProgress = progress;
+      const result = await mintEngine.executeMintSession(request, (progress: MintTaskProgress) => {
         if (progress.taskId) db.updateScheduler({ executionTaskId: progress.taskId });
         const last = progress.logs?.[progress.logs.length - 1];
         if (last) this.log(schedulerId, last);
@@ -268,39 +264,24 @@ export class DropWatcher {
         throw new Error('Mint engine completed without any submitted transaction hashes');
       }
 
-      db.updateScheduler({
-        status: 'DONE',
-        monitoringState: 'COMPLETED',
-        completionAt: new Date().toISOString(),
-        error: undefined,
-        nextCheckAt: undefined
-      });
+      db.updateScheduler({ status: 'DONE', monitoringState: 'COMPLETED', completionAt: new Date().toISOString(), error: undefined, nextCheckAt: undefined });
       this.log(schedulerId, `Mint execution completed. ${result.txHashes.length} transaction(s) submitted.`);
       this.emitSchedulerUpdate();
     } catch (err: any) {
-      db.updateScheduler({
-        status: 'FAILED',
-        monitoringState: 'FAILED',
-        completionAt: new Date().toISOString(),
-        error: err.message,
-        nextCheckAt: undefined
-      });
+      db.updateScheduler({ status: 'FAILED', monitoringState: 'FAILED', completionAt: new Date().toISOString(), error: err.message, nextCheckAt: undefined });
       this.log(schedulerId, `Mint execution failed: ${err.message}`);
       this.emitEvent('mint_progress', {
         taskId: db.getScheduler()?.executionTaskId || `scheduler_${schedulerId}`,
-        status: 'FAILED',
-        completedCount: 0,
-        totalCount: scheduler.walletIds.length,
-        logs: [err.message],
-        txHashes: []
+        status: 'FAILED', completedCount: 0, totalCount: scheduler.walletIds.length,
+        logs: [err.message], txHashes: []
       });
       this.emitSchedulerUpdate();
     }
   }
 
   private calculatePollDelay(msUntilExpected: number) {
-    if (msUntilExpected > FAR_THRESHOLD_MS) return POLL_VERY_FAR_MS;
-    if (msUntilExpected > APPROACHING_THRESHOLD_MS) return POLL_FAR_MS;
+    if (msUntilExpected > FAR_THRESHOLD_MS) return POLL_FAR_MS;
+    if (msUntilExpected > MID_THRESHOLD_MS) return POLL_MID_MS;
     if (msUntilExpected > CLOSE_THRESHOLD_MS) return POLL_APPROACHING_MS;
     return POLL_CLOSE_MS;
   }
@@ -331,9 +312,7 @@ export class DropWatcher {
 
     if (discordWebhookUrl) {
       try {
-        await axios.post(discordWebhookUrl, {
-          embeds: [{ title, description: message, color: 0xc8922a, url: collectionUrl, timestamp: new Date().toISOString() }]
-        });
+        await axios.post(discordWebhookUrl, { embeds: [{ title, description: message, color: 0xc8922a, url: collectionUrl, timestamp: new Date().toISOString() }] });
       } catch (err: any) {
         console.warn(`Discord webhook alert failed: ${err.message}`);
       }
