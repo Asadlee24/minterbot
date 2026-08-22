@@ -47,6 +47,14 @@ export interface MintActionData {
   networkId: number;
 }
 
+export interface MintAvailabilityResult {
+  available: boolean;
+  stageType?: string;
+  stageIndex?: number;
+  startTime?: string;
+  reason?: string;
+}
+
 export class OpenSeaService {
   private axiosClient: AxiosInstance;
   private cookieJar: Map<string, string> = new Map();
@@ -302,6 +310,85 @@ export class OpenSeaService {
       };
     } catch (err: any) {
       throw new Error(`OpenSea getMintAction failed: ${err.message}`);
+    }
+  }
+
+  /**
+   * Checks whether the public mint stage for a collection is currently available.
+   * Returns available=true only when an active PUBLIC or equivalent open-access stage
+   * is detected — i.e., the stage startTime is in the past (or absent, meaning live now).
+   *
+   * This is the primary early-detection mechanism used by the scheduler.
+   * Errors are caught and returned as { available: false, reason } so the polling
+   * loop can safely retry without terminating.
+   */
+  public async checkMintAvailability(slug: string, chainId?: number): Promise<MintAvailabilityResult> {
+    try {
+      const metadata = await this.getCollectionMetadata(slug);
+
+      if (!metadata.stages || metadata.stages.length === 0) {
+        return { available: false, reason: 'No drop stages found for collection' };
+      }
+
+      const now = new Date();
+
+      // Look for an open-access stage: PUBLIC, allowlist-expired, or any stage
+      // whose startTime is in the past (or undefined = live immediately).
+      // Priority: prefer stages explicitly typed PUBLIC.
+      const publicStages = metadata.stages.filter(
+        (s) => s.stageType?.toUpperCase().includes('PUBLIC')
+      );
+      const candidateStages = publicStages.length > 0 ? publicStages : metadata.stages;
+
+      for (const stage of candidateStages) {
+        // If no startTime specified, treat as live
+        if (!stage.startTime) {
+          return {
+            available: true,
+            stageType: stage.stageType,
+            stageIndex: stage.stageIndex,
+            reason: 'Stage has no startTime constraint — treating as live'
+          };
+        }
+
+        const stageStart = new Date(stage.startTime);
+        if (stageStart <= now) {
+          // Stage has started — check endTime if present
+          if (stage.endTime) {
+            const stageEnd = new Date(stage.endTime);
+            if (stageEnd <= now) {
+              // Stage ended — skip
+              continue;
+            }
+          }
+          return {
+            available: true,
+            stageType: stage.stageType,
+            stageIndex: stage.stageIndex,
+            startTime: stage.startTime,
+            reason: `Stage started at ${stage.startTime}`
+          };
+        }
+      }
+
+      // No available stage found — return the earliest upcoming one for reference
+      const upcoming = candidateStages
+        .filter((s) => s.startTime)
+        .sort((a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime())[0];
+
+      return {
+        available: false,
+        stageType: upcoming?.stageType,
+        startTime: upcoming?.startTime,
+        reason: upcoming
+          ? `Earliest stage starts at ${upcoming.startTime}`
+          : 'No upcoming stages found'
+      };
+    } catch (err: any) {
+      return {
+        available: false,
+        reason: `OpenSea API error: ${err.message}`
+      };
     }
   }
 }

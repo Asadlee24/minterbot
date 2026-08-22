@@ -169,10 +169,9 @@ export default function DashboardPage() {
       {/* Live Gas Tracker Bar */}
       <GasTrackerBar />
 
-      {/* Drop Timer & Auto-Mint Scheduler */}
+      {/* Drop Timer & Auto-Mint Scheduler — backend-driven, survives browser refresh */}
       <DropTimerScheduler
-        onExecuteMint={handleExecuteMint}
-        walletsCount={wallets.length}
+        wallets={wallets}
       />
 
       {/* Main Control Dashboard Grid */}

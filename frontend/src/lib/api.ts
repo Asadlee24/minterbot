@@ -117,3 +117,54 @@ export async function runDoctorCheck(executorAddress?: string, chainId = 84532) 
   if (executorAddress) query.append('executorAddress', executorAddress);
   return safeJsonFetch(`${WALLET_API}/api/doctor?${query.toString()}`);
 }
+
+// ─── Scheduler API ──────────────────────────────────────────────────────────
+// The backend owns the scheduler lifecycle. Frontend only reads/controls state.
+
+/**
+ * Fetches the current persisted scheduler state from the backend.
+ * Call on mount and after browser refresh to restore UI state.
+ */
+export async function fetchScheduler() {
+  return safeJsonFetch(`${WALLET_API}/api/scheduler`);
+}
+
+/**
+ * Arms the backend scheduler with the given configuration.
+ * The backend persists the config and starts the adaptive polling loop.
+ * Browser refresh / disconnect will NOT cancel the armed scheduler.
+ */
+export async function armScheduler(payload: {
+  slug: string;
+  expectedStartTime: string;   // ISO 8601
+  chainId: number;
+  quantity: number;
+  mode: 'single' | 'self-funded' | 'sponsored';
+  walletIds: string[];
+}) {
+  return safeJsonFetch(`${WALLET_API}/api/scheduler/arm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
+/**
+ * Disarms the backend scheduler (ARMED/CHECKING → IDLE).
+ * Has no effect on FIRING / DONE / FAILED schedulers.
+ */
+export async function disarmScheduler() {
+  return safeJsonFetch(`${WALLET_API}/api/scheduler/disarm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+}
+
+/**
+ * Fetches scheduler activity logs from the backend.
+ * Logs persist across browser refreshes.
+ */
+export async function fetchSchedulerLogs(limit = 100) {
+  return safeJsonFetch(`${WALLET_API}/api/scheduler/logs?limit=${limit}`);
+}
