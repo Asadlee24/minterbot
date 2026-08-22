@@ -8,13 +8,15 @@ import DoctorCard from '../components/DoctorCard';
 import GasTrackerBar from '../components/GasTrackerBar';
 import DropTimerScheduler from '../components/DropTimerScheduler';
 import { fetchWallets, generateWallets, importWallets, deleteWallet, fetchCollection, executeMint, getSocket } from '../lib/api';
-import { Shield, Cpu, Activity, Zap, CheckCircle2 } from 'lucide-react';
+import { requestNotificationPermission, getNotificationPermission, sendDesktopNotification } from '../lib/notifications';
+import { Shield, Cpu, Bell, BellRing, CheckCircle2 } from 'lucide-react';
 
 export default function DashboardPage() {
   const [wallets, setWallets] = useState<WalletItem[]>([]);
   const [loadingWallets, setLoadingWallets] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
   const [mintProgress, setMintProgress] = useState<ProgressData | null>(null);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
 
   const loadWalletsData = async (fast = false) => {
     setLoadingWallets(true);
@@ -34,6 +36,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadWalletsData(true).then(() => loadWalletsData(false));
+    setNotifPermission(getNotificationPermission());
 
     const socket = getSocket();
     if (socket) {
@@ -41,6 +44,15 @@ export default function DashboardPage() {
         setMintProgress(data);
         if (data.status === 'COMPLETED') {
           loadWalletsData();
+          sendDesktopNotification(
+            '🎉 Mint Session Completed!',
+            `Successfully processed mint session across ${data.totalCount} wallet(s).`
+          );
+        } else if (data.status === 'FAILED') {
+          sendDesktopNotification(
+            '⚠️ Mint Session Failed',
+            `Mint task encountered an error. Check status logs for details.`
+          );
         }
       });
     }
@@ -49,6 +61,14 @@ export default function DashboardPage() {
       if (socket) socket.off('mint_progress');
     };
   }, []);
+
+  const handleToggleNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    setNotifPermission(granted ? 'granted' : 'denied');
+    if (granted) {
+      sendDesktopNotification('🔔 Desktop Alerts Enabled', 'You will receive real-time pop-up alerts when mints execute!');
+    }
+  };
 
   const handleGenerateWallets = async (count: number) => {
     setLoadingWallets(true);
@@ -108,7 +128,7 @@ export default function DashboardPage() {
         sponsorWalletId: sponsorId
       });
       if (res?.success) {
-        setMintProgress({
+        const completedData: ProgressData = {
           taskId: res.sessionId || `session_${Date.now()}`,
           status: 'COMPLETED',
           completedCount: walletIds.length,
@@ -120,7 +140,12 @@ export default function DashboardPage() {
             `[SESSION INITIATED] Target Collection: ${payload.slug || payload.collectionSlug || 'pudgypenguins'}`,
             `[STATUS] Mint session completed for ${walletIds.length} wallet(s)`
           ]
-        });
+        };
+        setMintProgress(completedData);
+        sendDesktopNotification(
+          '🎉 Mint Session Executed!',
+          `Mint completed for collection ${payload.slug || payload.collectionSlug || 'pudgypenguins'}!`
+        );
       }
     } catch (err: any) {
       alert(`Mint trigger failed: ${err.message}`);
@@ -157,6 +182,27 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* Notification Permission Toggle */}
+          <button
+            onClick={handleToggleNotifications}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+              notifPermission === 'granted'
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                : 'bg-amber-50 border border-[#C8922A]/30 text-[#C8922A] hover:bg-amber-100'
+            }`}
+            title="Toggle Desktop Push Notifications"
+          >
+            {notifPermission === 'granted' ? (
+              <>
+                <BellRing className="w-3.5 h-3.5 text-emerald-600 animate-pulse" /> Desktop Alerts On
+              </>
+            ) : (
+              <>
+                <Bell className="w-3.5 h-3.5 text-[#C8922A]" /> Enable Desktop Alerts
+              </>
+            )}
+          </button>
+
           <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#C8922A]/20 text-xs text-stone-700 font-medium shadow-sm">
             <Shield className="w-3.5 h-3.5 text-[#C8922A]" />
             <span className="font-bold">{wallets.length} Active Wallet{wallets.length !== 1 ? 's' : ''}</span>

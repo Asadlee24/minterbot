@@ -6,6 +6,7 @@ import {
   Clock, Eye, AlertTriangle, RefreshCw, Activity
 } from 'lucide-react';
 import { fetchScheduler, armScheduler, disarmScheduler, fetchSchedulerLogs, getSocket } from '../lib/api';
+import { sendDesktopNotification } from '../lib/notifications';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -147,6 +148,22 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [refreshState]);
+
+  // ── Desktop Notification on status change ────────────────────────────────
+  const prevStatusRef = useRef<SchedulerStatus | null>(null);
+
+  useEffect(() => {
+    if (scheduler && scheduler.status !== prevStatusRef.current) {
+      if (scheduler.status === 'FIRING') {
+        sendDesktopNotification('🚀 Public Mint Live!', `Mint triggered for ${scheduler.slug} across ${scheduler.walletIds.length} wallet(s)!`);
+      } else if (scheduler.status === 'DONE') {
+        sendDesktopNotification('🎉 Auto-Mint Completed!', `Scheduler successfully finished minting ${scheduler.slug}!`);
+      } else if (scheduler.status === 'FAILED') {
+        sendDesktopNotification('❌ Scheduler Execution Failed', scheduler.error || `Scheduler failed for ${scheduler.slug}`);
+      }
+      prevStatusRef.current = scheduler.status;
+    }
+  }, [scheduler]);
 
   // ── Countdown ticker ──────────────────────────────────────────────────────
 
