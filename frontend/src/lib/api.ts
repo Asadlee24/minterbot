@@ -60,8 +60,9 @@ export async function deleteWallet(id: string) {
   return data;
 }
 
-export async function exportWalletPrivateKey(id: string) {
-  const res = await fetch(`${WALLET_API}/api/wallets/export/${id}`);
+export async function exportWalletPrivateKey(id: string, encryptedKey?: string) {
+  const query = encryptedKey ? `?encryptedKey=${encodeURIComponent(encryptedKey)}` : '';
+  const res = await fetch(`${WALLET_API}/api/wallets/export/${id}${query}`);
   const data = await res.json();
   if (!res.ok || !data.success) {
     throw new Error(data.error || 'Failed to export private key');

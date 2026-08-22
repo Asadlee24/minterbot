@@ -1,6 +1,6 @@
 /**
  * Shared in-memory wallet store and crypto utilities for Next.js API routes.
- * This runs server-side on Vercel and is the single source of truth.
+ * Handles fallback encryptedKey to survive Vercel serverless cold starts.
  */
 
 import crypto from 'crypto';
@@ -43,9 +43,7 @@ export function decryptKey(cipherText: string, secret: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// In-memory wallet store (persists for the lifetime of the server process).
-// On Vercel serverless each cold start begins empty — that's fine for demo.
-// For persistence set WALLET_DATA env var or use a real DB (Upstash/Neon).
+// In-memory wallet store
 // ---------------------------------------------------------------------------
 
 export interface WalletRecord {
@@ -56,7 +54,6 @@ export interface WalletRecord {
   createdAt: string;
 }
 
-// Global store — survives warm lambda invocations
 const globalStore = global as unknown as { _wallets: WalletRecord[] };
 if (!globalStore._wallets) globalStore._wallets = [];
 const wallets = globalStore._wallets;
@@ -68,7 +65,7 @@ export const walletStore = {
 
   save(record: WalletRecord): void {
     const existing = wallets.findIndex(
-      (w) => w.id === record.id || w.address === record.address
+      (w) => w.id === record.id || w.address.toLowerCase() === record.address.toLowerCase()
     );
     if (existing >= 0) {
       wallets[existing] = record;
@@ -84,14 +81,15 @@ export const walletStore = {
     return true;
   },
 
-  getDecryptedPrivateKey(id: string): string {
+  getDecryptedPrivateKey(id: string, fallbackEncryptedKey?: string): string {
     const record = wallets.find((w) => w.id === id || w.address.toLowerCase() === id.toLowerCase());
-    if (!record) throw new Error(`Wallet not found for ID ${id}`);
-    return decryptKey(record.encryptedKey, ENCRYPTION_SECRET);
+    const encKey = record?.encryptedKey || fallbackEncryptedKey;
+    if (!encKey) throw new Error(`Wallet not found for ID ${id}`);
+    return decryptKey(encKey, ENCRYPTION_SECRET);
   },
 
   generate(count: number, labelPrefix = 'Manifest Wallet') {
-    const created: Omit<WalletRecord, 'encryptedKey'>[] = [];
+    const created: WalletRecord[] = [];
     const validCount = Math.min(Math.max(1, count || 1), 50);
     for (let i = 0; i < validCount; i++) {
       const privateKey = generatePrivateKey();
@@ -102,13 +100,13 @@ export const walletStore = {
       const createdAt = new Date().toISOString();
       const record: WalletRecord = { id, address: account.address, encryptedKey, label, createdAt };
       walletStore.save(record);
-      created.push({ id, address: account.address, label, createdAt });
+      created.push(record);
     }
     return created;
   },
 
   import(privateKeys: string[], labelPrefix = 'Imported Wallet') {
-    const imported: Omit<WalletRecord, 'encryptedKey'>[] = [];
+    const imported: WalletRecord[] = [];
     for (let i = 0; i < privateKeys.length; i++) {
       let raw = (privateKeys[i] || '').trim().replace(/^['"]|['"]$/g, '');
       if (!raw) continue;
@@ -123,7 +121,7 @@ export const walletStore = {
       const createdAt = new Date().toISOString();
       const record: WalletRecord = { id, address: account.address, encryptedKey, label, createdAt };
       walletStore.save(record);
-      imported.push({ id, address: account.address, label, createdAt });
+      imported.push(record);
     }
     if (imported.length === 0) throw new Error('No valid private keys provided.');
     return imported;

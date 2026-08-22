@@ -18,16 +18,44 @@ export default function DashboardPage() {
   const [mintProgress, setMintProgress] = useState<ProgressData | null>(null);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
 
+  const updateWalletsWithCache = (newWallets: WalletItem[]) => {
+    setWallets(newWallets);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('minter_wallets_cache', JSON.stringify(newWallets));
+      }
+    } catch (_) {}
+  };
+
   const loadWalletsData = async (fast = false) => {
     setLoadingWallets(true);
     setWalletError(null);
     try {
       const res = await fetchWallets(fast);
-      if (res?.wallets) {
-        setWallets(res.wallets);
+      if (res?.wallets && res.wallets.length > 0) {
+        updateWalletsWithCache(res.wallets);
+      } else if (typeof window !== 'undefined') {
+        const cachedStr = localStorage.getItem('minter_wallets_cache');
+        if (cachedStr) {
+          const cached = JSON.parse(cachedStr);
+          if (Array.isArray(cached) && cached.length > 0) {
+            setWallets(cached);
+          }
+        }
       }
     } catch (err: any) {
       console.error('Failed to load wallets:', err);
+      if (typeof window !== 'undefined') {
+        const cachedStr = localStorage.getItem('minter_wallets_cache');
+        if (cachedStr) {
+          try {
+            const cached = JSON.parse(cachedStr);
+            if (Array.isArray(cached) && cached.length > 0) {
+              setWallets(cached);
+            }
+          } catch (_) {}
+        }
+      }
       setWalletError(err.message || 'Failed to load wallets');
     } finally {
       setLoadingWallets(false);
@@ -76,7 +104,11 @@ export default function DashboardPage() {
     try {
       const res = await generateWallets(count);
       if (res?.wallets) {
-        setWallets((prev) => [...prev, ...res.wallets].sort((a, b) => a.label.localeCompare(b.label)));
+        setWallets((prev) => {
+          const updated = [...prev, ...res.wallets].sort((a, b) => a.label.localeCompare(b.label));
+          updateWalletsWithCache(updated);
+          return updated;
+        });
       }
       loadWalletsData(false);
     } catch (err: any) {
@@ -93,7 +125,11 @@ export default function DashboardPage() {
     try {
       const res = await importWallets(keys);
       if (res?.wallets) {
-        setWallets((prev) => [...prev, ...res.wallets].sort((a, b) => a.label.localeCompare(b.label)));
+        setWallets((prev) => {
+          const updated = [...prev, ...res.wallets].sort((a, b) => a.label.localeCompare(b.label));
+          updateWalletsWithCache(updated);
+          return updated;
+        });
       }
       loadWalletsData(false);
     } catch (err: any) {
@@ -107,6 +143,11 @@ export default function DashboardPage() {
   const handleDeleteWallet = async (id: string) => {
     try {
       await deleteWallet(id);
+      setWallets((prev) => {
+        const updated = prev.filter((w) => w.id !== id);
+        updateWalletsWithCache(updated);
+        return updated;
+      });
       await loadWalletsData();
     } catch (err) {
       console.error(err);
