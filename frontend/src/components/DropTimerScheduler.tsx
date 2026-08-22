@@ -79,12 +79,12 @@ function getCountdown(targetDate: Date): Countdown {
 const statusConfig: Record<SchedulerStatus, {
   label: string; bg: string; border: string; text: string; dot: string; pulse?: boolean;
 }> = {
-  IDLE:     { label: 'Not scheduled',           bg: 'bg-stone-100',   border: 'border-stone-200',   text: 'text-stone-500',   dot: 'bg-stone-400' },
-  ARMED:    { label: 'Armed — awaiting start',  bg: 'bg-amber-50',    border: 'border-amber-300',   text: 'text-amber-700',   dot: 'bg-amber-500',   pulse: true },
-  CHECKING: { label: 'Monitoring OpenSea...',   bg: 'bg-blue-50',     border: 'border-blue-300',    text: 'text-blue-700',    dot: 'bg-blue-500',    pulse: true },
-  FIRING:   { label: 'Minting now!',            bg: 'bg-violet-50',   border: 'border-violet-300',  text: 'text-violet-700',  dot: 'bg-violet-500',  pulse: true },
-  DONE:     { label: 'Done — mint executed',    bg: 'bg-emerald-50',  border: 'border-emerald-300', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  FAILED:   { label: 'Failed — see log',        bg: 'bg-red-50',      border: 'border-red-300',     text: 'text-red-700',     dot: 'bg-red-500' },
+  IDLE:     { label: 'Not scheduled',           bg: 'bg-slate-900/60', border: 'border-white/10',     text: 'text-slate-400',   dot: 'bg-slate-500' },
+  ARMED:    { label: 'Armed — awaiting start',  bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400',   dot: 'bg-amber-400',   pulse: true },
+  CHECKING: { label: 'Monitoring OpenSea...',   bg: 'bg-cyan-500/10',  border: 'border-cyan-500/30',  text: 'text-cyan-400',    dot: 'bg-cyan-400',    pulse: true },
+  FIRING:   { label: 'Minting now!',            bg: 'bg-purple-500/10',border: 'border-purple-500/30',text: 'text-purple-300', dot: 'bg-purple-400',  pulse: true },
+  DONE:     { label: 'Done — mint executed',    bg: 'bg-emerald-500/10',border: 'border-emerald-500/30',text: 'text-emerald-400',dot: 'bg-emerald-400' },
+  FAILED:   { label: 'Failed — see log',        bg: 'bg-rose-500/10',   border: 'border-rose-500/30',  text: 'text-rose-400',    dot: 'bg-rose-400' },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -178,23 +178,31 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
   const handleArm = async () => {
     if (!slug.trim())   return setError('Enter a collection slug.');
     if (!dropTime)      return setError('Set a drop date and time first.');
-    if (wallets.length === 0) return setError('Generate or import at least one wallet first.');
-    if (new Date(dropTime) <= new Date()) return setError('Expected start time must be in the future.');
+    if (wallets.length === 0) return setError('Generate or import at least 1 wallet first.');
+
+    const expectedDate = new Date(dropTime);
+    if (expectedDate <= new Date()) {
+      return setError('Set a drop time in the future.');
+    }
 
     setLoading(true);
     setError(null);
+
     try {
-      await armScheduler({
+      const res = await armScheduler({
         slug: slug.trim().toLowerCase(),
-        expectedStartTime: new Date(dropTime).toISOString(),
+        expectedStartTime: expectedDate.toISOString(),
         chainId,
         quantity,
         mode,
         walletIds: wallets.map((w) => w.id)
       });
-      await refreshState();
+      if (res?.scheduler) {
+        setScheduler(res.scheduler);
+        await refreshState();
+      }
     } catch (err: any) {
-      setError(`Failed to arm scheduler: ${err.message}`);
+      setError(err.message || 'Failed to arm scheduler');
     } finally {
       setLoading(false);
     }
@@ -204,68 +212,81 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
 
   const handleDisarm = async () => {
     setLoading(true);
-    setError(null);
     try {
-      await disarmScheduler();
-      await refreshState();
+      const res = await disarmScheduler();
+      if (res?.scheduler) {
+        setScheduler(res.scheduler);
+        await refreshState();
+      }
     } catch (err: any) {
-      setError(`Failed to disarm: ${err.message}`);
+      setError(err.message || 'Failed to disarm scheduler');
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Reset (local form only) ───────────────────────────────────────────────
+  // ── Reset (after DONE / FAILED) ──────────────────────────────────────────
 
-  const handleReset = () => {
-    setSlug('');
-    setDropTime('');
-    setError(null);
+  const handleReset = async () => {
+    setLoading(true);
+    try {
+      await disarmScheduler();
+      setScheduler(null);
+      await refreshState();
+    } catch (err: any) {
+      setError(err.message || 'Failed to reset scheduler');
+    } finally {
+      setLoading(false);
+    }
   };
-
-  // ── Derived UI state ──────────────────────────────────────────────────────
 
   const status: SchedulerStatus = scheduler?.status || 'IDLE';
   const cfg = statusConfig[status];
   const isActive = ['ARMED', 'CHECKING', 'FIRING'].includes(status);
-  const isEditable = !isActive && status !== 'DONE';
+  const isEditable = status === 'IDLE' || status === 'DONE' || status === 'FAILED';
 
   return (
-    <div className="glass-card rounded-2xl border border-amber-900/10 shadow-sm overflow-hidden">
+    <div className="glass-card rounded-2xl shadow-xl overflow-hidden">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-950/40">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-[#C8922A]/20 flex items-center justify-center text-[#C8922A]">
-            <Timer className="w-4 h-4" />
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+            <AlarmClock className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-semibold text-stone-900 text-sm">Auto-Mint Scheduler</h2>
-            <p className="text-stone-400 text-xs">
-              {backendConnected
-                ? 'Backend-driven — survives browser refresh'
-                : 'Connecting to backend...'}
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading font-bold text-lg text-slate-100 tracking-tight">Auto-Mint Scheduler</h2>
+              <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-md uppercase">
+                Backend Engine
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">
+              State persisted on server — survives browser refresh & disconnections
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {/* Backend connection indicator */}
-          <div className={`w-1.5 h-1.5 rounded-full ${backendConnected ? 'bg-emerald-400' : 'bg-red-400'}`} title={backendConnected ? 'Backend connected' : 'Backend offline'} />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-white/10 text-[11px] font-mono text-slate-400">
+            <span className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-rose-500 animate-pulse'}`} />
+            {backendConnected ? 'Online' : 'Offline'}
+          </div>
           {/* Status badge */}
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium ${cfg.bg} ${cfg.border} ${cfg.text}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} ${cfg.pulse ? 'animate-pulse' : ''}`} />
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold ${cfg.bg} ${cfg.border} ${cfg.text}`}>
+            <span className={`w-2 h-2 rounded-full ${cfg.dot} ${cfg.pulse ? 'animate-pulse' : ''}`} />
             {cfg.label}
           </div>
         </div>
       </div>
 
-      <div className="p-6 space-y-5">
+      <div className="p-6 space-y-6">
         {/* ── Error Banner ── */}
         {error && (
-          <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
-            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-            <span className="flex-1">{error}</span>
-            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-700 font-bold text-base leading-none ml-1">×</button>
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span className="flex-1 font-medium">{error}</span>
+            <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-200 font-bold text-base leading-none ml-1">×</button>
           </div>
         )}
 
@@ -274,7 +295,7 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Collection Slug</label>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Collection Slug</label>
                 <input
                   id="scheduler-slug"
                   type="text"
@@ -282,11 +303,11 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
                   value={scheduler?.slug || slug}
                   onChange={(e) => setSlug(e.target.value)}
                   disabled={!isEditable || loading}
-                  className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm text-stone-900 bg-white/70 focus:outline-none focus:border-[#C8922A] placeholder:text-stone-300 disabled:opacity-50 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl dark-input text-sm text-slate-100 placeholder:text-slate-600 disabled:opacity-50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Expected Start Time</label>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Expected Start Time</label>
                 <input
                   id="scheduler-droptime"
                   type="datetime-local"
@@ -295,46 +316,46 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
                     : dropTime}
                   onChange={(e) => setDropTime(e.target.value)}
                   disabled={!isEditable || loading}
-                  className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm text-stone-900 bg-white/70 focus:outline-none focus:border-[#C8922A] disabled:opacity-50 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl dark-input text-sm text-slate-100 disabled:opacity-50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Target Chain</label>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Target Chain</label>
                 <select
                   id="scheduler-chain"
                   value={scheduler?.chainId || chainId}
                   onChange={(e) => setChainId(parseInt(e.target.value))}
                   disabled={!isEditable || loading}
-                  className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm text-stone-900 bg-white/70 focus:outline-none focus:border-[#C8922A] disabled:opacity-50 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl dark-input text-sm text-slate-100 disabled:opacity-50"
                 >
-                  <option value={4663}>Robinhood Chain (Mainnet)</option>
-                  <option value={46630}>Robinhood Testnet</option>
-                  <option value={84532}>Base Sepolia (Testnet)</option>
-                  <option value={8453}>Base Mainnet</option>
-                  <option value={1}>Ethereum</option>
-                  <option value={42161}>Arbitrum One</option>
-                  <option value={137}>Polygon</option>
+                  <option value={4663} className="bg-slate-900 text-slate-200">Robinhood Chain (Mainnet)</option>
+                  <option value={46630} className="bg-slate-900 text-slate-200">Robinhood Testnet</option>
+                  <option value={84532} className="bg-slate-900 text-slate-200">Base Sepolia (Testnet)</option>
+                  <option value={8453} className="bg-slate-900 text-slate-200">Base Mainnet</option>
+                  <option value={1} className="bg-slate-900 text-slate-200">Ethereum Mainnet</option>
+                  <option value={42161} className="bg-slate-900 text-slate-200">Arbitrum One</option>
+                  <option value={137} className="bg-slate-900 text-slate-200">Polygon Mainnet</option>
                 </select>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Mint Mode</label>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Mint Execution Mode</label>
                 <select
                   id="scheduler-mode"
                   value={scheduler?.mode || mode}
                   onChange={(e) => setMode(e.target.value as any)}
                   disabled={!isEditable || loading}
-                  className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm text-stone-900 bg-white/70 focus:outline-none focus:border-[#C8922A] disabled:opacity-50 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl dark-input text-sm text-slate-100 disabled:opacity-50"
                 >
-                  <option value="single">Single Wallet</option>
-                  <option value="self-funded">Self-Funded Multi-Wallet</option>
-                  <option value="sponsored">Sponsored (EIP-7702)</option>
+                  <option value="single" className="bg-slate-900 text-slate-200">Single Wallet</option>
+                  <option value="self-funded" className="bg-slate-900 text-slate-200">Self-Funded Multi-Wallet</option>
+                  <option value="sponsored" className="bg-slate-900 text-slate-200">Sponsored (EIP-7702)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Quantity per Wallet</label>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Quantity per Wallet</label>
                 <input
                   id="scheduler-quantity"
                   type="number"
@@ -343,7 +364,7 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
                   value={scheduler?.quantity || quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                   disabled={!isEditable || loading}
-                  className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm text-stone-900 bg-white/70 focus:outline-none focus:border-[#C8922A] disabled:opacity-50 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl dark-input text-sm text-slate-100 disabled:opacity-50"
                 />
               </div>
             </div>
@@ -352,38 +373,35 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
 
         {/* ── Active Scheduler Summary ── */}
         {isActive && scheduler && (
-          <div className="rounded-xl border border-stone-100 bg-stone-50/50 px-4 py-3 space-y-1.5 text-xs text-stone-600">
-            <div className="flex justify-between"><span className="text-stone-400">Collection</span><span className="font-mono font-medium">{scheduler.slug}</span></div>
-            <div className="flex justify-between"><span className="text-stone-400">Chain</span><span>{scheduler.chainId}</span></div>
-            <div className="flex justify-between"><span className="text-stone-400">Mode</span><span className="capitalize">{scheduler.mode}</span></div>
-            <div className="flex justify-between"><span className="text-stone-400">Wallets</span><span>{scheduler.walletIds.length}</span></div>
-            <div className="flex justify-between"><span className="text-stone-400">Qty/wallet</span><span>{scheduler.quantity}</span></div>
+          <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 space-y-2 text-xs text-slate-300">
+            <div className="flex justify-between items-center"><span className="text-slate-400 font-medium">Target Collection</span><span className="font-mono font-bold text-amber-400">{scheduler.slug}</span></div>
+            <div className="flex justify-between items-center"><span className="text-slate-400 font-medium">Chain ID</span><span className="font-mono text-cyan-400">{scheduler.chainId}</span></div>
+            <div className="flex justify-between items-center"><span className="text-slate-400 font-medium">Execution Mode</span><span className="capitalize font-semibold text-slate-200">{scheduler.mode}</span></div>
+            <div className="flex justify-between items-center"><span className="text-slate-400 font-medium">Active Wallets</span><span className="font-semibold text-slate-200">{scheduler.walletIds.length} wallets</span></div>
+            <div className="flex justify-between items-center"><span className="text-slate-400 font-medium">Mint Qty</span><span className="font-semibold text-slate-200">{scheduler.quantity} per wallet</span></div>
             {scheduler.lastCheckTimestamp && (
-              <div className="flex justify-between"><span className="text-stone-400">Last check</span><span>{new Date(scheduler.lastCheckTimestamp).toLocaleTimeString()}</span></div>
-            )}
-            {scheduler.nextCheckTimestamp && (
-              <div className="flex justify-between"><span className="text-stone-400">Next check</span><span>{new Date(scheduler.nextCheckTimestamp).toLocaleTimeString()}</span></div>
+              <div className="flex justify-between items-center"><span className="text-slate-400 font-medium">Last OpenSea Check</span><span className="font-mono text-slate-400">{new Date(scheduler.lastCheckTimestamp).toLocaleTimeString()}</span></div>
             )}
           </div>
         )}
 
-        {/* ── Countdown (display only — does NOT control execution) ── */}
+        {/* ── Countdown Cards ── */}
         {countdown && isActive && (
-          <div className="rounded-2xl border border-[#C8922A]/20 bg-gradient-to-b from-amber-500/5 to-transparent p-5">
+          <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-amber-500/10 via-slate-900/40 to-transparent p-6">
             {scheduler?.openSeaAvailable ? (
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <Zap className="w-4 h-4 text-violet-500 animate-pulse" />
-                <p className="text-center text-xs font-semibold text-violet-600 uppercase tracking-widest">
-                  PUBLIC MINT DETECTED — Firing mint...
+              <div className="flex items-center justify-center gap-2 mb-5">
+                <Zap className="w-5 h-5 text-purple-400 animate-pulse" />
+                <p className="text-center text-xs font-bold text-purple-300 uppercase tracking-widest">
+                  PUBLIC MINT DETECTED — Executing Mint...
                 </p>
               </div>
             ) : countdown.isPast ? (
-              <p className="text-center text-xs font-medium text-amber-600 mb-4">
-                Expected time passed — monitoring for availability...
+              <p className="text-center text-xs font-semibold text-amber-400 mb-5">
+                Expected time reached — monitoring OpenSea availability aggressively...
               </p>
             ) : (
-              <p className="text-center text-xs font-medium text-stone-400 mb-4">
-                Expected public mint start in
+              <p className="text-center text-xs font-medium text-slate-400 mb-5">
+                Countdown to expected start time
               </p>
             )}
             <div className="grid grid-cols-4 gap-3">
@@ -393,57 +411,55 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
                 { v: countdown.minutes, l: 'Min' },
                 { v: countdown.seconds, l: 'Sec' },
               ].map(({ v, l }) => (
-                <div key={l} className="flex flex-col items-center bg-white rounded-2xl py-4 border border-stone-100 shadow-sm">
-                  <span className={`font-mono font-bold text-4xl tabular-nums leading-none ${countdown.isPast ? 'text-amber-600' : 'text-stone-900'}`}>
+                <div key={l} className="flex flex-col items-center bg-slate-950/80 rounded-2xl py-4 border border-white/10 shadow-lg">
+                  <span className={`font-heading font-extrabold text-3xl sm:text-4xl tabular-nums leading-none ${countdown.isPast ? 'text-amber-400' : 'text-slate-100'}`}>
                     {String(v).padStart(2, '0')}
                   </span>
-                  <span className="text-[10px] font-medium text-stone-400 uppercase tracking-widest mt-2">{l}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{l}</span>
                 </div>
               ))}
             </div>
-            <p className="text-center text-[10px] text-stone-300 mt-3">
-              ⚡ Countdown is display only — backend polls OpenSea independently and fires mint on early detection
+            <p className="text-center text-[11px] text-slate-400 mt-4 font-mono">
+              ⚡ Early Public-Mint Detection active — backend polls continuously and mints early if OpenSea opens early.
             </p>
           </div>
         )}
 
-        {/* ── Firing banner ── */}
+        {/* ── Status Banners ── */}
         {status === 'FIRING' && (
-          <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 flex items-center gap-3">
-            <Zap className="w-4 h-4 text-violet-500 flex-shrink-0 animate-pulse" />
-            <span className="text-sm text-violet-700 font-medium">Sending transactions to chain — {scheduler?.walletIds.length} wallet(s)...</span>
+          <div className="rounded-xl bg-purple-500/10 border border-purple-500/30 px-4 py-3 flex items-center gap-3">
+            <Zap className="w-5 h-5 text-purple-400 flex-shrink-0 animate-pulse" />
+            <span className="text-sm text-purple-300 font-semibold">Broadcasting mint transactions to blockchain...</span>
           </div>
         )}
 
-        {/* ── Done banner ── */}
         {status === 'DONE' && (
-          <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 flex items-center gap-3">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-            <span className="text-sm text-emerald-700 font-medium">Mint executed. Check the Status Feed for transaction details.</span>
+          <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+            <span className="text-sm text-emerald-300 font-semibold">Mint executed successfully! Check status feed for tx hashes.</span>
           </div>
         )}
 
-        {/* ── Failed banner ── */}
         {status === 'FAILED' && scheduler?.error && (
-          <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 flex items-start gap-3">
-            <XCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="rounded-xl bg-rose-500/10 border border-rose-500/30 px-4 py-3 flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-red-700 font-medium">Scheduler failed.</p>
-              <p className="text-xs text-red-500 mt-0.5 font-mono">{scheduler.error}</p>
+              <p className="text-sm text-rose-300 font-semibold">Scheduler execution halted.</p>
+              <p className="text-xs text-rose-400 mt-0.5 font-mono">{scheduler.error}</p>
             </div>
           </div>
         )}
 
         {/* ── Actions ── */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pt-2">
           {(status === 'IDLE' || status === 'DONE' || status === 'FAILED') && (
             <button
               id="scheduler-arm-btn"
               onClick={handleArm}
               disabled={loading || wallets.length === 0}
-              className="gold-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-sm disabled:opacity-50"
+              className="gold-gradient-btn px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg disabled:opacity-50"
             >
-              {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
               Arm Scheduler
             </button>
           )}
@@ -452,17 +468,17 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
               id="scheduler-disarm-btn"
               onClick={handleDisarm}
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-stone-900 text-white flex items-center gap-2 hover:bg-stone-800 transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-rose-600 text-white flex items-center gap-2 hover:bg-rose-500 shadow-lg transition-colors disabled:opacity-50"
             >
-              {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5 fill-current" />}
-              Disarm
+              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Square className="w-4 h-4 fill-current" />}
+              Disarm Scheduler
             </button>
           )}
           {(status === 'DONE' || status === 'FAILED') && (
             <button
               id="scheduler-reset-btn"
               onClick={handleReset}
-              className="px-4 py-2.5 rounded-xl text-sm font-medium border border-stone-200 text-stone-600 hover:border-stone-300 bg-white/70 transition-colors"
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-white/10 text-slate-300 hover:bg-white/5 transition-colors"
             >
               Reset
             </button>
@@ -472,55 +488,41 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
             onClick={refreshState}
             disabled={loading}
             title="Refresh scheduler state"
-            className="ml-auto p-2 rounded-lg border border-stone-200 text-stone-400 hover:text-stone-600 hover:border-stone-300 bg-white/70 transition-colors"
+            className="ml-auto p-2 rounded-xl border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-4 h-4" />
           </button>
-          <span className="text-xs text-stone-400">
+          <span className="text-xs text-slate-400 font-medium">
             {wallets.length} wallet{wallets.length !== 1 ? 's' : ''} ready
           </span>
         </div>
 
-        {/* ── Monitoring state indicator ── */}
-        {status === 'CHECKING' && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100">
-            <Eye className="w-3.5 h-3.5 text-blue-500 animate-pulse flex-shrink-0" />
-            <span className="text-xs text-blue-700">
-              Polling OpenSea for public mint availability — adaptive interval
-              {scheduler?.openSeaAvailable && (
-                <span className="ml-2 font-semibold text-violet-700">• DETECTED</span>
-              )}
-            </span>
-          </div>
-        )}
-
-        {/* ── Activity Log (from backend — survives browser refresh) ── */}
+        {/* ── Activity Log (persisted on backend) ── */}
         {logs.length > 0 && (
-          <div>
+          <div className="pt-2">
             <div className="flex items-center gap-2 mb-2">
-              <Activity className="w-3 h-3 text-stone-400" />
-              <p className="text-xs font-medium text-stone-400">Activity log</p>
-              <span className="text-[10px] text-stone-300">(persisted on backend)</span>
+              <Activity className="w-3.5 h-3.5 text-slate-400" />
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Scheduler Activity Log</p>
             </div>
-            <div className="bg-stone-950 rounded-xl px-4 py-3 space-y-1 max-h-48 overflow-y-auto">
+            <div className="bg-slate-950 rounded-xl px-4 py-3 space-y-1.5 max-h-48 overflow-y-auto border border-white/10">
               {logs.map((entry) => (
                 <p
                   key={entry.id}
                   className={`text-[11px] font-mono leading-relaxed ${
-                    entry.message.includes('❌') || entry.message.includes('Error') || entry.message.includes('FAILED') || entry.message.includes('failed')
-                      ? 'text-red-400'
-                      : entry.message.includes('✅') || entry.message.includes('DONE') || entry.message.includes('completed') || entry.message.includes('executed')
+                    entry.message.includes('❌') || entry.message.includes('Error') || entry.message.includes('FAILED')
+                      ? 'text-rose-400'
+                      : entry.message.includes('✅') || entry.message.includes('DONE')
                       ? 'text-emerald-400'
-                      : entry.message.includes('🔥') || entry.message.includes('FIRING') || entry.message.includes('Minting') || entry.message.includes('Sending')
-                      ? 'text-violet-300'
-                      : entry.message.includes('⏳') || entry.message.includes('Monitoring') || entry.message.includes('Polling')
-                      ? 'text-blue-300'
-                      : entry.message.includes('⚠️') || entry.message.includes('Recovery') || entry.message.includes('warning')
+                      : entry.message.includes('🔥') || entry.message.includes('FIRING')
+                      ? 'text-purple-300'
+                      : entry.message.includes('⏳') || entry.message.includes('Monitoring')
+                      ? 'text-cyan-300'
+                      : entry.message.includes('⚠️')
                       ? 'text-amber-300'
-                      : 'text-stone-400'
+                      : 'text-slate-400'
                   }`}
                 >
-                  <span className="text-stone-600 mr-2">
+                  <span className="text-slate-600 mr-2">
                     {new Date(entry.timestamp).toLocaleTimeString('en-US', { hour12: false })}
                   </span>
                   {entry.message}
