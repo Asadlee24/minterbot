@@ -8,8 +8,25 @@ const WALLET_API = EXTERNAL_BACKEND || '';
 
 let socket: Socket | null = null;
 
+export function getClientSessionId(): string {
+  if (typeof window === 'undefined') return 'default_session';
+  let sid = localStorage.getItem('minter_session_id');
+  if (!sid) {
+    sid = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    localStorage.setItem('minter_session_id', sid);
+  }
+  return sid;
+}
+
+function getAuthHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'x-client-session-id': getClientSessionId()
+  };
+}
+
 export function getSocket(): Socket | null {
-  if (!EXTERNAL_BACKEND) return null; // no socket without external backend
+  if (!EXTERNAL_BACKEND) return null;
   if (!socket) {
     socket = io(EXTERNAL_BACKEND);
   }
@@ -17,7 +34,9 @@ export function getSocket(): Socket | null {
 }
 
 export async function fetchWallets(fast = false) {
-  const res = await fetch(`${WALLET_API}/api/wallets${fast ? '?fast=true' : ''}`);
+  const res = await fetch(`${WALLET_API}/api/wallets${fast ? '?fast=true' : ''}`, {
+    headers: { 'x-client-session-id': getClientSessionId() }
+  });
   const data = await res.json();
   if (!res.ok || !data.success) {
     throw new Error(data.error || 'Failed to fetch wallets');
@@ -28,7 +47,7 @@ export async function fetchWallets(fast = false) {
 export async function generateWallets(count: number, labelPrefix?: string) {
   const res = await fetch(`${WALLET_API}/api/wallets/generate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ count, labelPrefix })
   });
   const data = await res.json();
@@ -41,7 +60,7 @@ export async function generateWallets(count: number, labelPrefix?: string) {
 export async function importWallets(privateKeys: string[], labelPrefix?: string) {
   const res = await fetch(`${WALLET_API}/api/wallets/import`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ privateKeys, labelPrefix })
   });
   const data = await res.json();
@@ -52,7 +71,10 @@ export async function importWallets(privateKeys: string[], labelPrefix?: string)
 }
 
 export async function deleteWallet(id: string) {
-  const res = await fetch(`${WALLET_API}/api/wallets/${id}`, { method: 'DELETE' });
+  const res = await fetch(`${WALLET_API}/api/wallets/${id}`, {
+    method: 'DELETE',
+    headers: { 'x-client-session-id': getClientSessionId() }
+  });
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error || 'Failed to delete wallet');
@@ -62,7 +84,9 @@ export async function deleteWallet(id: string) {
 
 export async function exportWalletPrivateKey(id: string, encryptedKey?: string) {
   const query = encryptedKey ? `?encryptedKey=${encodeURIComponent(encryptedKey)}` : '';
-  const res = await fetch(`${WALLET_API}/api/wallets/export/${id}${query}`);
+  const res = await fetch(`${WALLET_API}/api/wallets/export/${id}${query}`, {
+    headers: { 'x-client-session-id': getClientSessionId() }
+  });
   const data = await res.json();
   if (!res.ok || !data.success) {
     throw new Error(data.error || 'Failed to export private key');
@@ -71,7 +95,11 @@ export async function exportWalletPrivateKey(id: string, encryptedKey?: string) 
 }
 
 async function safeJsonFetch(url: string, options?: RequestInit) {
-  const res = await fetch(url, options);
+  const headers = {
+    ...options?.headers,
+    'x-client-session-id': getClientSessionId()
+  };
+  const res = await fetch(url, { ...options, headers });
   const text = await res.text();
   let data: any;
   try {
@@ -120,24 +148,14 @@ export async function runDoctorCheck(executorAddress?: string, chainId = 84532) 
 }
 
 // ─── Scheduler API ──────────────────────────────────────────────────────────
-// The backend owns the scheduler lifecycle. Frontend only reads/controls state.
 
-/**
- * Fetches the current persisted scheduler state from the backend.
- * Call on mount and after browser refresh to restore UI state.
- */
 export async function fetchScheduler() {
   return safeJsonFetch(`${WALLET_API}/api/scheduler`);
 }
 
-/**
- * Arms the backend scheduler with the given configuration.
- * The backend persists the config and starts the adaptive polling loop.
- * Browser refresh / disconnect will NOT cancel the armed scheduler.
- */
 export async function armScheduler(payload: {
   slug: string;
-  expectedStartTime: string;   // ISO 8601
+  expectedStartTime: string;
   chainId: number;
   quantity: number;
   mode: 'single' | 'self-funded' | 'sponsored';
@@ -150,10 +168,6 @@ export async function armScheduler(payload: {
   });
 }
 
-/**
- * Disarms the backend scheduler (ARMED/CHECKING → IDLE).
- * Has no effect on FIRING / DONE / FAILED schedulers.
- */
 export async function disarmScheduler() {
   return safeJsonFetch(`${WALLET_API}/api/scheduler/disarm`, {
     method: 'POST',
@@ -162,10 +176,6 @@ export async function disarmScheduler() {
   });
 }
 
-/**
- * Fetches scheduler activity logs from the backend.
- * Logs persist across browser refreshes.
- */
 export async function fetchSchedulerLogs(limit = 100) {
   return safeJsonFetch(`${WALLET_API}/api/scheduler/logs?limit=${limit}`);
 }

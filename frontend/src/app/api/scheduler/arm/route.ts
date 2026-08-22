@@ -6,6 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { slug, expectedStartTime, chainId, quantity, mode, walletIds } = body;
+    const sessionId = req.headers.get('x-client-session-id') || 'default_session';
 
     if (!slug || typeof slug !== 'string') {
       return NextResponse.json({ success: false, error: 'slug is required' }, { status: 400 });
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
       quantity: Number(quantity) || 1,
       mode: mode || 'self-funded',
       walletIds
-    });
+    }, sessionId);
 
     return NextResponse.json({ success: true, scheduler });
   } catch (err: any) {

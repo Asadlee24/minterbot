@@ -5,7 +5,8 @@ import { walletStore } from '../../../lib/walletStore';
 export async function GET(req: NextRequest) {
   try {
     const chainId = parseInt(req.nextUrl.searchParams.get('chainId') || '84532', 10);
-    const wallets = walletStore.getAll();
+    const sessionId = req.headers.get('x-client-session-id') || 'default_session';
+    const wallets = walletStore.getWallets(sessionId);
 
     return NextResponse.json({
       success: true,

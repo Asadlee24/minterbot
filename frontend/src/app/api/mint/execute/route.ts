@@ -206,6 +206,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const collectionSlug = body.collectionSlug || body.slug;
     const { mode, chainId = 8453, walletIds, quantity = 1 } = body;
+    const sessionId = req.headers.get('x-client-session-id') || 'default_session';
 
     if (!collectionSlug) {
       return NextResponse.json(
@@ -226,7 +227,7 @@ export async function POST(req: NextRequest) {
     const selectedWalletIds: string[] =
       Array.isArray(walletIds) && walletIds.length > 0
         ? walletIds
-        : walletStore.getAll().map((w) => w.id);
+        : walletStore.getWallets(sessionId).map((w) => w.id);
 
     if (selectedWalletIds.length === 0) {
       return NextResponse.json(
@@ -268,7 +269,7 @@ export async function POST(req: NextRequest) {
       selectedWalletIds.map(async (wId, i) => {
         let privateKey: string;
         try {
-          privateKey = walletStore.getDecryptedPrivateKey(wId);
+          privateKey = walletStore.getDecryptedPrivateKey(wId, undefined, sessionId);
         } catch {
           logs.push(`Wallet ${i + 1}: could not decrypt private key — skipped`);
           return;

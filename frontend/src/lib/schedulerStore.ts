@@ -29,16 +29,16 @@ export interface SchedulerLogRecord {
 }
 
 const globalStore = global as unknown as {
-  _scheduler: SchedulerRecord | null;
-  _schedulerLogs: SchedulerLogRecord[];
+  _schedulersBySession: Record<string, SchedulerRecord | null>;
+  _schedulerLogsBySession: Record<string, SchedulerLogRecord[]>;
 };
 
-if (!globalStore._scheduler) globalStore._scheduler = null;
-if (!globalStore._schedulerLogs) globalStore._schedulerLogs = [];
+if (!globalStore._schedulersBySession) globalStore._schedulersBySession = {};
+if (!globalStore._schedulerLogsBySession) globalStore._schedulerLogsBySession = {};
 
 export const schedulerStore = {
-  get(): SchedulerRecord | null {
-    return globalStore._scheduler;
+  get(sessionId = 'default_session'): SchedulerRecord | null {
+    return globalStore._schedulersBySession[sessionId] || null;
   },
 
   arm(payload: {
@@ -48,7 +48,7 @@ export const schedulerStore = {
     quantity: number;
     mode: 'single' | 'self-funded' | 'sponsored';
     walletIds: string[];
-  }): SchedulerRecord {
+  }, sessionId = 'default_session'): SchedulerRecord {
     const now = new Date().toISOString();
     const record: SchedulerRecord = {
       id: `sch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -64,36 +64,42 @@ export const schedulerStore = {
       createdAt: now,
       updatedAt: now
     };
-    globalStore._scheduler = record;
-    this.addLog(record.id, `Scheduler ARMED for ${payload.slug} (Target: ${payload.expectedStartTime})`);
+    globalStore._schedulersBySession[sessionId] = record;
+    this.addLog(record.id, `Scheduler ARMED for ${payload.slug} (Target: ${payload.expectedStartTime})`, sessionId);
     return record;
   },
 
-  disarm(): SchedulerRecord | null {
-    if (!globalStore._scheduler) return null;
+  disarm(sessionId = 'default_session'): SchedulerRecord | null {
+    const active = this.get(sessionId);
+    if (!active) return null;
     const now = new Date().toISOString();
-    globalStore._scheduler.status = 'IDLE';
-    globalStore._scheduler.monitoringActive = false;
-    globalStore._scheduler.updatedAt = now;
-    this.addLog(globalStore._scheduler.id, 'Scheduler DISARMED by user.');
-    return globalStore._scheduler;
+    active.status = 'IDLE';
+    active.monitoringActive = false;
+    active.updatedAt = now;
+    this.addLog(active.id, 'Scheduler DISARMED by user.', sessionId);
+    return active;
   },
 
-  addLog(schedulerId: string, message: string): SchedulerLogRecord {
+  addLog(schedulerId: string, message: string, sessionId = 'default_session'): SchedulerLogRecord {
+    if (!globalStore._schedulerLogsBySession[sessionId]) {
+      globalStore._schedulerLogsBySession[sessionId] = [];
+    }
+    const logs = globalStore._schedulerLogsBySession[sessionId];
     const log: SchedulerLogRecord = {
       id: `slog_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       schedulerId,
       message,
       timestamp: new Date().toISOString()
     };
-    globalStore._schedulerLogs.unshift(log);
-    if (globalStore._schedulerLogs.length > 200) {
-      globalStore._schedulerLogs = globalStore._schedulerLogs.slice(0, 200);
+    logs.unshift(log);
+    if (logs.length > 200) {
+      globalStore._schedulerLogsBySession[sessionId] = logs.slice(0, 200);
     }
     return log;
   },
 
-  getLogs(limit = 100): SchedulerLogRecord[] {
-    return globalStore._schedulerLogs.slice(0, limit);
+  getLogs(limit = 100, sessionId = 'default_session'): SchedulerLogRecord[] {
+    const logs = globalStore._schedulerLogsBySession[sessionId] || [];
+    return logs.slice(0, limit);
   }
 };

@@ -68,11 +68,12 @@ async function getWalletBalances(address: Address) {
   return balances;
 }
 
-// GET /api/wallets — list all wallets
+// GET /api/wallets — list wallets for requesting session
 export async function GET(req: NextRequest) {
   try {
     const fast = req.nextUrl.searchParams.get('fast') === 'true';
-    const records = walletStore.getAll();
+    const sessionId = req.headers.get('x-client-session-id') || 'default_session';
+    const records = walletStore.getWallets(sessionId);
 
     const wallets = await Promise.all(
       records.map(async (rec) => {
@@ -80,6 +81,7 @@ export async function GET(req: NextRequest) {
         return {
           id: rec.id,
           address: rec.address,
+          encryptedKey: rec.encryptedKey,
           label: rec.label,
           createdAt: rec.createdAt,
           balances

@@ -3,12 +3,13 @@ import { walletStore } from '../../../../lib/walletStore';
 
 // DELETE /api/wallets/[id]
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const ok = walletStore.delete(id);
+    const sessionId = req.headers.get('x-client-session-id') || 'default_session';
+    const ok = walletStore.delete(id, sessionId);
     return NextResponse.json({ success: ok });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

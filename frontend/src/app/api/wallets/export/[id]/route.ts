@@ -8,8 +8,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const sessionId = req.headers.get('x-client-session-id') || 'default_session';
     const fallbackEncryptedKey = req.nextUrl.searchParams.get('encryptedKey') || undefined;
-    const privateKey = walletStore.getDecryptedPrivateKey(id, fallbackEncryptedKey);
+    const privateKey = walletStore.getDecryptedPrivateKey(id, fallbackEncryptedKey, sessionId);
     return NextResponse.json({ success: true, privateKey });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 400 });

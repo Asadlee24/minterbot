@@ -1,6 +1,6 @@
 /**
- * Shared in-memory wallet store and crypto utilities for Next.js API routes.
- * Handles fallback encryptedKey to survive Vercel serverless cold starts.
+ * Shared wallet store and crypto utilities for Next.js API routes.
+ * Session-isolated so each user's browser session receives ONLY their own wallets.
  */
 
 import crypto from 'crypto';
@@ -43,7 +43,7 @@ export function decryptKey(cipherText: string, secret: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// In-memory wallet store
+// Session-Isolated In-memory Wallet Store
 // ---------------------------------------------------------------------------
 
 export interface WalletRecord {
@@ -54,59 +54,69 @@ export interface WalletRecord {
   createdAt: string;
 }
 
-const globalStore = global as unknown as { _wallets: WalletRecord[] };
-if (!globalStore._wallets) globalStore._wallets = [];
-const wallets = globalStore._wallets;
+const globalStore = global as unknown as {
+  _walletsBySession: Record<string, WalletRecord[]>;
+};
+
+if (!globalStore._walletsBySession) globalStore._walletsBySession = {};
 
 export const walletStore = {
-  getAll(): WalletRecord[] {
-    return wallets;
+  getWallets(sessionId = 'default_session'): WalletRecord[] {
+    if (!globalStore._walletsBySession[sessionId]) {
+      globalStore._walletsBySession[sessionId] = [];
+    }
+    return globalStore._walletsBySession[sessionId];
   },
 
-  save(record: WalletRecord): void {
-    const existing = wallets.findIndex(
+  save(record: WalletRecord, sessionId = 'default_session'): void {
+    const list = this.getWallets(sessionId);
+    const existing = list.findIndex(
       (w) => w.id === record.id || w.address.toLowerCase() === record.address.toLowerCase()
     );
     if (existing >= 0) {
-      wallets[existing] = record;
+      list[existing] = record;
     } else {
-      wallets.push(record);
+      list.push(record);
     }
   },
 
-  delete(id: string): boolean {
-    const idx = wallets.findIndex((w) => w.id === id);
+  delete(id: string, sessionId = 'default_session'): boolean {
+    const list = this.getWallets(sessionId);
+    const idx = list.findIndex((w) => w.id === id);
     if (idx < 0) return false;
-    wallets.splice(idx, 1);
+    list.splice(idx, 1);
     return true;
   },
 
-  getDecryptedPrivateKey(id: string, fallbackEncryptedKey?: string): string {
-    const record = wallets.find((w) => w.id === id || w.address.toLowerCase() === id.toLowerCase());
+  getDecryptedPrivateKey(id: string, fallbackEncryptedKey?: string, sessionId = 'default_session'): string {
+    const list = this.getWallets(sessionId);
+    const record = list.find((w) => w.id === id || w.address.toLowerCase() === id.toLowerCase());
     const encKey = record?.encryptedKey || fallbackEncryptedKey;
     if (!encKey) throw new Error(`Wallet not found for ID ${id}`);
     return decryptKey(encKey, ENCRYPTION_SECRET);
   },
 
-  generate(count: number, labelPrefix = 'Manifest Wallet') {
+  generate(count: number, labelPrefix = 'Manifest Wallet', sessionId = 'default_session') {
     const created: WalletRecord[] = [];
     const validCount = Math.min(Math.max(1, count || 1), 50);
+    const existingCount = this.getWallets(sessionId).length;
     for (let i = 0; i < validCount; i++) {
       const privateKey = generatePrivateKey();
       const account = privateKeyToAccount(privateKey);
       const encryptedKey = encryptKey(privateKey, ENCRYPTION_SECRET);
       const id = `w_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const label = `${labelPrefix} #${wallets.length + created.length + 1}`;
+      const label = `${labelPrefix} #${existingCount + created.length + 1}`;
       const createdAt = new Date().toISOString();
       const record: WalletRecord = { id, address: account.address, encryptedKey, label, createdAt };
-      walletStore.save(record);
+      this.save(record, sessionId);
       created.push(record);
     }
     return created;
   },
 
-  import(privateKeys: string[], labelPrefix = 'Imported Wallet') {
+  import(privateKeys: string[], labelPrefix = 'Imported Wallet', sessionId = 'default_session') {
     const imported: WalletRecord[] = [];
+    const existingCount = this.getWallets(sessionId).length;
     for (let i = 0; i < privateKeys.length; i++) {
       let raw = (privateKeys[i] || '').trim().replace(/^['"]|['"]$/g, '');
       if (!raw) continue;
@@ -117,10 +127,10 @@ export const walletStore = {
       const account = privateKeyToAccount(keyHex as Hex);
       const encryptedKey = encryptKey(keyHex, ENCRYPTION_SECRET);
       const id = `w_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const label = `${labelPrefix} #${wallets.length + imported.length + 1}`;
+      const label = `${labelPrefix} #${existingCount + imported.length + 1}`;
       const createdAt = new Date().toISOString();
       const record: WalletRecord = { id, address: account.address, encryptedKey, label, createdAt };
-      walletStore.save(record);
+      this.save(record, sessionId);
       imported.push(record);
     }
     if (imported.length === 0) throw new Error('No valid private keys provided.');

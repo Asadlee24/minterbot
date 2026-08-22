@@ -6,6 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const { privateKeys, labelPrefix } = body;
+    const sessionId = req.headers.get('x-client-session-id') || 'default_session';
 
     if (!Array.isArray(privateKeys) || privateKeys.length === 0) {
       return NextResponse.json(
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const wallets = walletStore.import(privateKeys, labelPrefix);
+    const wallets = walletStore.import(privateKeys, labelPrefix, sessionId);
     return NextResponse.json({ success: true, wallets });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 400 });
