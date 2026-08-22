@@ -453,7 +453,7 @@ export default function DropTimerScheduler({ wallets }: DropTimerProps) {
               id="scheduler-arm-btn"
               onClick={handleArm}
               disabled={loading || wallets.length === 0}
-              className="blue-gradient-btn px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-md disabled:opacity-50"
+              className="gold-gradient-btn px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-md disabled:opacity-50"
             >
               {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
               Arm Scheduler

@@ -8,7 +8,7 @@ export default function Footer() {
     <footer className="w-full border-t border-slate-200 py-8 px-6 bg-white backdrop-blur-xl mt-auto">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center font-heading font-extrabold text-white text-xs shadow-sm">
+          <div className="w-8 h-8 rounded-xl gold-gradient-btn flex items-center justify-center font-heading font-extrabold text-white text-xs shadow-sm">
             M
           </div>
           <div>

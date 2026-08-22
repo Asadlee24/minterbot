@@ -53,17 +53,17 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
   };
 
   return (
-    <div className="glass-card rounded-2xl p-6 space-y-6 shadow-sm relative overflow-hidden border border-slate-200">
+    <div className="glass-card rounded-2xl p-6 space-y-6 shadow-sm relative overflow-hidden">
       <div>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-[#C8922A]/20 flex items-center justify-center text-[#C8922A] shadow-sm">
             <Layers className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
+            <h2 className="font-heading font-bold text-xl text-stone-900 flex items-center gap-2">
               Drop Configurator
             </h2>
-            <p className="text-xs text-slate-500">Inspect OpenSea drop stage & trigger instant multi-wallet mint</p>
+            <p className="text-xs text-stone-500">Inspect OpenSea drop stage & trigger instant multi-wallet mint</p>
           </div>
         </div>
       </div>
@@ -71,19 +71,19 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
       {/* Collection Search Form */}
       <form onSubmit={handleLookup} className="flex gap-3">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
           <input
             type="text"
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             placeholder="Collection slug or URL (e.g. pudgypenguins)"
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl light-input text-sm text-slate-900 placeholder:text-slate-400"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl light-input text-sm text-stone-900 placeholder:text-stone-400"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="blue-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2"
+          className="gold-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2"
         >
           {loading ? 'Resolving...' : 'Resolve'}
         </button>
@@ -91,12 +91,12 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
 
       {/* Collection Details Badge */}
       {collectionData && (
-        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-between">
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-[#C8922A]/30 flex items-center justify-between">
           <div>
-            <h4 className="font-heading font-bold text-blue-900 text-base">{collectionData.slug}</h4>
-            <p className="text-xs font-mono text-blue-700 mt-0.5">{collectionData.address}</p>
+            <h4 className="font-heading font-bold text-amber-950 text-base">{collectionData.slug}</h4>
+            <p className="text-xs font-mono text-amber-900/80 mt-0.5">{collectionData.address}</p>
           </div>
-          <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs font-bold uppercase tracking-wider shadow-sm">
+          <span className="px-3 py-1 bg-[#C8922A] text-white rounded-full text-xs font-bold uppercase tracking-wider shadow-sm">
             {collectionData.chainIdentifier || 'EVM'}
           </span>
         </div>
@@ -104,7 +104,7 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
 
       {/* Execution Mode Selector */}
       <div className="space-y-2">
-        <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Execution Mode</label>
+        <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">Execution Mode</label>
         <div className="grid grid-cols-3 gap-2.5">
           {[
             { id: 'single', label: 'Single Wallet', desc: 'Direct Mint' },
@@ -117,15 +117,15 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
               onClick={() => setMode(m.id as any)}
               className={`p-3 rounded-xl border text-left transition-all ${
                 mode === m.id
-                  ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-sm font-semibold'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                  ? 'bg-amber-500/10 border-[#C8922A] text-stone-900 shadow-sm font-semibold'
+                  : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
               }`}
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="font-bold text-xs">{m.label}</span>
-                {mode === m.id && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                {mode === m.id && <Check className="w-3.5 h-3.5 text-[#C8922A]" />}
               </div>
-              <p className="text-[10px] text-slate-500">{m.desc}</p>
+              <p className="text-[10px] text-stone-500">{m.desc}</p>
             </button>
           ))}
         </div>
@@ -134,11 +134,11 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
       {/* Target Chain & Quantity */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Target Network</label>
+          <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider mb-2">Target Network</label>
           <select
             value={chainId}
             onChange={(e) => setChainId(Number(e.target.value))}
-            className="w-full px-3.5 py-2.5 rounded-xl light-input text-sm text-slate-900"
+            className="w-full px-3.5 py-2.5 rounded-xl light-input text-sm text-stone-900"
           >
             <option value={4663}>Robinhood Chain (Mainnet)</option>
             <option value={46630}>Robinhood Testnet</option>
@@ -151,14 +151,14 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Mint Quantity</label>
+          <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider mb-2">Mint Quantity</label>
           <input
             type="number"
             min={1}
             max={10}
             value={quantity}
             onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-full px-3.5 py-2.5 rounded-xl light-input text-sm text-slate-900"
+            className="w-full px-3.5 py-2.5 rounded-xl light-input text-sm text-stone-900"
           />
         </div>
       </div>
@@ -166,14 +166,14 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
       {/* Sponsored Mode Executor Input */}
       {mode === 'sponsored' && (
         <div>
-          <label className="block text-xs font-semibold text-amber-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-            <Zap className="w-3.5 h-3.5 text-amber-600" /> EIP-7702 Delegation Executor Address
+          <label className="block text-xs font-semibold text-[#C8922A] uppercase tracking-wider mb-1.5 flex items-center gap-1">
+            <Zap className="w-3.5 h-3.5" /> EIP-7702 Delegation Executor Address
           </label>
           <input
             type="text"
             value={executorAddress}
             onChange={(e) => setExecutorAddress(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl light-input font-mono text-xs text-slate-900"
+            className="w-full px-3.5 py-2.5 rounded-xl light-input font-mono text-xs text-stone-900"
           />
         </div>
       )}
@@ -183,42 +183,42 @@ export default function DropConfigForm({ onExecuteMint, onFetchCollection, walle
         type="button"
         onClick={handleStartMintClick}
         disabled={walletsCount === 0}
-        className="w-full blue-gradient-btn py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-md disabled:opacity-40"
+        className="w-full gold-gradient-btn py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-md disabled:opacity-40"
       >
         <Sparkles className="w-4 h-4 fill-current" /> Execute Instant Mint Session ({walletsCount} Wallets)
       </button>
 
       {/* Confirmation Modal */}
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white max-w-md w-full p-6 rounded-2xl space-y-4 border border-slate-200 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm">
+          <div className="bg-white max-w-md w-full p-6 rounded-2xl space-y-4 border border-stone-200 shadow-2xl">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-[#C8922A]">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-heading font-bold text-lg text-slate-900">Confirm Mint Execution</h3>
-                <p className="text-xs text-slate-500">Are you sure you want to broadcast transactions?</p>
+                <h3 className="font-heading font-bold text-lg text-stone-900">Confirm Mint Execution</h3>
+                <p className="text-xs text-stone-500">Are you sure you want to broadcast transactions?</p>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs text-slate-700">
-              <div className="flex justify-between"><span className="text-slate-500">Target Slug:</span><span className="font-mono text-blue-700 font-bold">{slug}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Execution Mode:</span><span className="capitalize font-semibold text-slate-900">{mode}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Target Chain:</span><span className="font-mono text-slate-800">{chainId}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Wallets Participating:</span><span className="font-semibold text-slate-900">{walletsCount}</span></div>
+            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-1.5 text-xs text-stone-700">
+              <div className="flex justify-between"><span className="text-stone-500">Target Slug:</span><span className="font-mono text-[#C8922A] font-bold">{slug}</span></div>
+              <div className="flex justify-between"><span className="text-stone-500">Execution Mode:</span><span className="capitalize font-semibold text-stone-900">{mode}</span></div>
+              <div className="flex justify-between"><span className="text-stone-500">Target Chain:</span><span className="font-mono text-stone-800">{chainId}</span></div>
+              <div className="flex justify-between"><span className="text-stone-500">Wallets Participating:</span><span className="font-semibold text-stone-900">{walletsCount}</span></div>
             </div>
 
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+                className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-700 text-xs font-semibold hover:bg-stone-50"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmAndExecute}
-                className="flex-1 blue-gradient-btn py-2.5 rounded-xl text-xs font-bold"
+                className="flex-1 gold-gradient-btn py-2.5 rounded-xl text-xs font-bold"
               >
                 Confirm & Mint
               </button>

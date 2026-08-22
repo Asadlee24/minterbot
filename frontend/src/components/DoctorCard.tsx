@@ -38,7 +38,7 @@ export default function DoctorCard() {
         <button
           onClick={handleRunDoctor}
           disabled={loading}
-          className="blue-gradient-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2"
+          className="gold-gradient-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Run Diagnostics
         </button>
