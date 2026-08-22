@@ -90,18 +90,18 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
   };
 
   return (
-    <div className="glass-card rounded-2xl p-6 shadow-xl">
+    <div className="glass-card rounded-2xl p-6 shadow-sm border border-slate-200">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-sm">
               <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-heading font-bold text-xl text-slate-100 flex items-center gap-2">
+              <h2 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
                 Wallet Manifest
               </h2>
-              <p className="text-xs text-slate-400">Encrypted AES-256 local storage — {wallets.length} active wallets</p>
+              <p className="text-xs text-slate-500">Encrypted AES-256 local storage — {wallets.length} active wallets</p>
             </div>
           </div>
         </div>
@@ -117,14 +117,14 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
           <button
             type="button"
             onClick={() => setShowImportModal(true)}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 border border-white/10 text-slate-200 hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
           >
-            <Key className="w-3.5 h-3.5 text-amber-400" /> Import
+            <Key className="w-3.5 h-3.5 text-amber-600" /> Import
           </button>
           <button
             type="button"
             onClick={handleExportCSV}
-            className="p-2 rounded-xl border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"
+            className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
             title="Export CSV"
           >
             <Download className="w-4 h-4" />
@@ -133,7 +133,7 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
             type="button"
             onClick={onRefresh}
             disabled={loading}
-            className="p-2 rounded-xl border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"
+            className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
             title="Refresh Balances"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -143,11 +143,11 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
 
       {/* Wallet List Table */}
       {wallets.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/10 p-8 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center mx-auto text-slate-500">
+        <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center space-y-3 bg-slate-50/50">
+          <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mx-auto text-slate-400 shadow-sm">
             <Wallet className="w-6 h-6" />
           </div>
-          <p className="text-sm font-semibold text-slate-300">No Wallets Configured</p>
+          <p className="text-sm font-bold text-slate-800">No Wallets Configured</p>
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
             Generate or import wallets to start executing multi-wallet mint sessions.
           </p>
@@ -160,16 +160,16 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
             </button>
             <button
               onClick={() => setShowImportModal(true)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 border border-white/10 text-slate-200 hover:bg-slate-800"
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 shadow-sm"
             >
               Import Keys
             </button>
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-white/10">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/80 border-b border-white/10 text-slate-400 font-semibold uppercase tracking-wider">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3">Label</th>
                 <th className="px-4 py-3">Address</th>
@@ -177,27 +177,27 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 bg-slate-900/40">
+            <tbody className="divide-y divide-slate-100">
               {wallets.map((w) => {
                 const baseBal = w.balances?.[84532]?.balanceEth || '0.0000';
                 return (
-                  <tr key={w.id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-4 py-3 font-semibold text-slate-200 whitespace-nowrap">
+                  <tr key={w.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                       {w.label}
                     </td>
-                    <td className="px-4 py-3 font-mono text-slate-400">
+                    <td className="px-4 py-3 font-mono text-slate-600">
                       <div className="flex items-center gap-1.5">
                         <span>{w.address.slice(0, 6)}...{w.address.slice(-4)}</span>
                         <button
                           onClick={() => handleCopyAddress(w.id, w.address)}
-                          className="text-slate-500 hover:text-cyan-400 transition-colors"
+                          className="text-slate-400 hover:text-blue-600 transition-colors"
                           title="Copy Address"
                         >
-                          {copiedAddressId === w.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedAddressId === w.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold text-slate-300">
+                    <td className="px-4 py-3 font-mono font-bold text-slate-900">
                       {baseBal} ETH
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -205,14 +205,14 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
                         <button
                           onClick={() => handleExportKey(w)}
                           disabled={exportLoadingId === w.id}
-                          className="p-1.5 rounded-lg border border-white/10 text-amber-400 hover:bg-amber-500/10 transition-colors"
+                          className="p-1.5 rounded-lg border border-slate-200 text-amber-600 hover:bg-amber-50 transition-colors"
                           title="Export Private Key"
                         >
                           <Key className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => onDelete(w.id)}
-                          className="p-1.5 rounded-lg border border-white/10 text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          className="p-1.5 rounded-lg border border-slate-200 text-rose-600 hover:bg-rose-50 transition-colors"
                           title="Delete Wallet"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -229,12 +229,12 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
 
       {/* Generate Modal */}
       {showGenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="glass-card max-w-sm w-full p-6 rounded-2xl space-y-4 border border-emerald-500/30">
-            <h3 className="font-heading font-bold text-lg text-slate-100">Generate Wallets</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white max-w-sm w-full p-6 rounded-2xl space-y-4 border border-slate-200 shadow-2xl">
+            <h3 className="font-heading font-bold text-lg text-slate-900">Generate Wallets</h3>
             <form onSubmit={handleGenerateSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                   Number of Wallets (1-20)
                 </label>
                 <input
@@ -243,14 +243,14 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
                   max={20}
                   value={genCount}
                   onChange={(e) => setGenCount(parseInt(e.target.value) || 1)}
-                  className="w-full px-3.5 py-2.5 rounded-xl dark-input text-sm text-slate-100"
+                  className="w-full px-3.5 py-2.5 rounded-xl light-input text-sm text-slate-900"
                 />
               </div>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowGenModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 text-xs font-semibold hover:bg-white/5"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50"
                 >
                   Cancel
                 </button>
@@ -268,12 +268,12 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
 
       {/* Import Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="glass-card max-w-md w-full p-6 rounded-2xl space-y-4 border border-amber-500/30">
-            <h3 className="font-heading font-bold text-lg text-slate-100">Import Private Keys</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white max-w-md w-full p-6 rounded-2xl space-y-4 border border-slate-200 shadow-2xl">
+            <h3 className="font-heading font-bold text-lg text-slate-900">Import Private Keys</h3>
             <form onSubmit={handleImportSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                   Paste 64-hex Private Keys (one per line)
                 </label>
                 <textarea
@@ -281,20 +281,20 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
                   value={importKeysText}
                   onChange={(e) => setImportKeysText(e.target.value)}
                   placeholder="0x..."
-                  className="w-full p-3 rounded-xl dark-input font-mono text-xs text-slate-100"
+                  className="w-full p-3 rounded-xl light-input font-mono text-xs text-slate-900"
                 />
               </div>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowImportModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 text-xs font-semibold hover:bg-white/5"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 gold-gradient-btn py-2.5 rounded-xl text-xs font-bold"
+                  className="flex-1 blue-gradient-btn py-2.5 rounded-xl text-xs font-bold"
                 >
                   Import Keys
                 </button>
@@ -306,36 +306,36 @@ export default function WalletTable({ wallets, loading, onRefresh, onGenerate, o
 
       {/* Export Key Modal */}
       {exportedKey && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="glass-card max-w-md w-full p-6 rounded-2xl space-y-4 border border-amber-500/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white max-w-md w-full p-6 rounded-2xl space-y-4 border border-slate-200 shadow-2xl">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
                 <Key className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-heading font-bold text-base text-slate-100">{exportedKey.label}</h3>
-                <p className="text-xs font-mono text-slate-400">{exportedKey.address}</p>
+                <h3 className="font-heading font-bold text-base text-slate-900">{exportedKey.label}</h3>
+                <p className="text-xs font-mono text-slate-500">{exportedKey.address}</p>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-white/10 space-y-2">
-              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
                 Decrypted Private Key
               </label>
-              <div className="flex items-center justify-between gap-2 bg-slate-900 p-2.5 rounded-lg border border-white/10">
-                <span className="font-mono text-xs text-amber-300 select-all truncate">{exportedKey.key}</span>
+              <div className="flex items-center justify-between gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                <span className="font-mono text-xs text-amber-700 font-bold select-all truncate">{exportedKey.key}</span>
                 <button
                   onClick={() => handleCopyKey(exportedKey.key)}
-                  className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 flex-shrink-0"
+                  className="p-1.5 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 flex-shrink-0"
                 >
-                  {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
 
             <button
               onClick={() => setExportedKey(null)}
-              className="w-full py-2.5 rounded-xl border border-white/10 text-slate-300 text-xs font-semibold hover:bg-white/5"
+              className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50"
             >
               Close
             </button>
