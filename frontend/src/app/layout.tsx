@@ -3,7 +3,7 @@ import '../styles/globals.css';
 import Footer from '../components/Footer';
 
 export const metadata: Metadata = {
-  title: 'OSNM-Z | Multi-Wallet OpenSea Minting Terminal',
+  title: 'Minter | Multi-Wallet OpenSea Minting Terminal',
   description: 'Full-stack multi-wallet OpenSea NFT minting platform with persistent backend scheduler, EIP-7702 sponsored mode, and real-time monitoring.',
 };
 

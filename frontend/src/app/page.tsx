@@ -141,11 +141,11 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-slate-200 pb-6">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center font-heading font-black text-2xl text-white shadow-md">
-            Z
+            M
           </div>
           <div>
             <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-slate-900 tracking-tight flex items-center gap-3">
-              OSNM-Z Dashboard
+              Minter Dashboard
               <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700">
                 v2.0 Web3
               </span>

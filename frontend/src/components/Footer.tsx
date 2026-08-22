@@ -9,10 +9,10 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center font-heading font-extrabold text-white text-xs shadow-sm">
-            Z
+            M
           </div>
           <div>
-            <span className="font-heading font-bold text-slate-900 text-base">OSNM-Z Engine</span>
+            <span className="font-heading font-bold text-slate-900 text-base">Minter Engine</span>
             <span className="ml-2 text-xs text-slate-500 font-mono">v2.0 Full-Stack</span>
           </div>
         </div>
